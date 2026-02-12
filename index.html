@@ -13,14 +13,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Lucide React Icons -->
-    <script src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.min.js"></script>
-    
-    <!-- Babel for JSX -->
+    <!-- Babel for JSX (Standalone) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
@@ -44,33 +37,31 @@
             border-color: #ea580c; 
         }
         
-        /* Hide scrollbar for cleaner UI in overflow containers */
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const { useState, useEffect, useMemo } = React;
-        const { 
+        // Import Modules from ESM.SH (More stable than UMD)
+        import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        
+        // Import Lucide Icons via ESM
+        import { 
             Home, PlusCircle, ClipboardList, CheckCircle, User, ShieldCheck, Filter, 
             Check, X, ArrowLeft, HeartHandshake, MapPin, Phone, Calendar, BookOpen, 
             Menu, ChevronRight, Download, Printer, Lock, LogOut, FileText, Megaphone, 
             Mic, RotateCcw, CalendarDays, Pencil, Save, Key, QrCode, ShoppingBag, 
-            UploadCloud, Image: ImageIcon, Loader 
-        } = lucideReact;
+            UploadCloud, Image as ImageIcon, Loader 
+        } from 'https://esm.sh/lucide-react@0.344.0';
+
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ==========================================
         // FIREBASE CONFIGURATION
@@ -97,7 +88,7 @@
         }
 
         // ==========================================
-        // HELPER: Image Resizer (to Base64)
+        // HELPER: Image Resizer
         // ==========================================
         const resizeImage = (file) => {
             return new Promise((resolve) => {
@@ -121,40 +112,28 @@
         };
 
         // ==========================================
-        // MOCK DATA (Fallback)
-        // ==========================================
-        const initialDonations = [];
-
-        // ==========================================
         // MASTER APP COMPONENT
         // ==========================================
         function App() {
             const [currentRoute, setCurrentRoute] = useState('home');
-            const [donations, setDonations] = useState(initialDonations);
+            const [donations, setDonations] = useState([]);
             const [loading, setLoading] = useState(true);
             const [user, setUser] = useState(null);
 
-            // Auth & Data Fetching
+            // Auth
             useEffect(() => {
-                if (!auth) {
-                    setLoading(false);
-                    return;
-                }
                 const initAuth = async () => {
-                    try {
-                        await signInAnonymously(auth);
-                    } catch (error) {
-                        console.error("Auth error:", error);
-                    }
+                    try { await signInAnonymously(auth); } 
+                    catch (error) { console.error("Auth error:", error); }
                 };
                 initAuth();
                 const unsubscribe = onAuthStateChanged(auth, setUser);
                 return () => unsubscribe();
             }, []);
 
+            // Data Fetching
             useEffect(() => {
                 if (!user || !db) return;
-                
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'donations'));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -165,37 +144,23 @@
                     console.error("Data fetch error:", error); 
                     setLoading(false); 
                 });
-                
                 return () => unsubscribe();
             }, [user]);
 
             const handleAddDonation = async (newDonation) => {
-                if (!db) { 
-                    setDonations([newDonation, ...donations]); 
-                    return; 
-                }
-                try { 
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'donations'), newDonation); 
-                } catch (e) { 
-                    alert("เกิดข้อผิดพลาดในการบันทึก: " + e.message); 
-                }
+                try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'donations'), newDonation); } 
+                catch (e) { alert("เกิดข้อผิดพลาดในการบันทึก: " + e.message); }
             };
 
             const handleUpdateDonation = async (updatedDonation) => {
-                if (!db) {
-                    setDonations(donations.map(d => d.id === updatedDonation.id ? updatedDonation : d));
-                    return;
-                }
                 try { 
                     const { id, ...data } = updatedDonation; 
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'donations', id), data); 
-                } catch (e) { 
-                    alert("แก้ไขไม่สำเร็จ: " + e.message); 
-                }
+                } catch (e) { alert("แก้ไขไม่สำเร็จ: " + e.message); }
             };
 
             return (
-                <div style={{ fontFamily: "'Sarabun', sans-serif" }}>
+                <div>
                     {loading ? (
                         <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 text-orange-600">
                             <Loader className="w-10 h-10 animate-spin mb-4" /><p>กำลังเชื่อมต่อฐานข้อมูล...</p>
@@ -390,9 +355,9 @@
             );
         }
 
-        // ------------------------------------------
+        // ==========================================
         // LOGIN MODAL
-        // ------------------------------------------
+        // ==========================================
         function LoginModal({ role, onClose, onLoginSuccess }) {
             const [password, setPassword] = useState('');
             const [error, setError] = useState('');
@@ -418,9 +383,9 @@
             );
         }
 
-        // ------------------------------------------
+        // ==========================================
         // DONATION FORM
-        // ------------------------------------------
+        // ==========================================
         function DonationForm({ userRole, onSave }) {
             const [name, setName] = useState('');
             const [method, setMethod] = useState('เงินโอน');
@@ -739,7 +704,7 @@
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+        const root = createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
