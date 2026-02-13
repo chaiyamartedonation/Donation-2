@@ -46,7 +46,7 @@
 
     <script type="text/babel" data-type="module">
         // Import Modules
-        import React, { useState, useEffect, useMemo, useRef } from 'https://esm.sh/react@18.2.0';
+        import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
         import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
         
         // Import Icons
@@ -55,7 +55,7 @@
             Check, X, ArrowLeft, HeartHandshake, MapPin, Phone, Calendar, BookOpen, 
             Menu, ChevronRight, Download, Printer, Lock, LogOut, FileText, Megaphone, 
             Mic, RotateCcw, CalendarDays, Pencil, Save, Key, QrCode, ShoppingBag, 
-            UploadCloud, Image as ImageIcon, Loader, Maximize2, LogIn, Trash2, Edit, Plus, AlertTriangle, Settings, Power, RefreshCw, AlertOctagon, ChevronDown
+            UploadCloud, Image as ImageIcon, Loader, Maximize2, LogIn, Trash2, Edit, Plus, AlertTriangle, Settings, Power, RefreshCw, AlertOctagon
         } from 'https://esm.sh/lucide-react@0.344.0';
 
         // Firebase Imports
@@ -231,6 +231,250 @@
         }
 
         // ==========================================
+        // COMPONENT: Official Website
+        // ==========================================
+        function OfficialWebsite({ onNavigate, donations, userRole, user }) {
+            const [isScrolled, setIsScrolled] = useState(false);
+            const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+            const totalAmount = useMemo(() => donations.filter(d => d.status === 'approved').reduce((sum, d) => sum + d.amount, 0), [donations]);
+
+            useEffect(() => {
+                const handleScroll = () => setIsScrolled(window.scrollY > 50);
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, []);
+
+            const navLinks = [{ name: 'หน้าหลัก', href: '#home' }, { name: 'ประวัติวัด', href: '#about' }, { name: 'กิจกรรม/ข่าวสาร', href: '#events' }, { name: 'ติดต่อเรา', href: '#contact' }];
+
+            return (
+                <div className="min-h-screen bg-orange-50 text-gray-800 scroll-smooth">
+                    <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md py-2' : 'bg-transparent py-4'}`}>
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isScrolled ? 'bg-orange-600 text-white' : 'bg-white text-orange-600'}`}><BookOpen className="w-6 h-6" /></div>
+                                    <span className={`text-xl font-bold ${isScrolled ? 'text-orange-800' : 'text-white drop-shadow-md'}`}>วัดไชยามาตย์</span>
+                                </div>
+                                <div className="hidden md:flex items-center space-x-8">
+                                    {navLinks.map((link) => (<a key={link.name} href={link.href} className={`font-medium hover:text-orange-400 transition-colors ${isScrolled ? 'text-gray-600' : 'text-white drop-shadow-md'}`}>{link.name}</a>))}
+                                    <button onClick={() => onNavigate('donate-system')} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-full font-bold flex items-center transition-transform hover:scale-105 shadow-lg"><HeartHandshake className="w-5 h-5 mr-2" />ร่วมทำบุญ</button>
+                                </div>
+                                <div className="md:hidden"><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className={isScrolled ? 'text-gray-800' : 'text-white'}>{mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}</button></div>
+                            </div>
+                        </div>
+                        {mobileMenuOpen && (
+                            <div className="md:hidden bg-white absolute top-full left-0 w-full shadow-lg border-t border-gray-100">
+                                <div className="px-4 pt-2 pb-4 space-y-1 flex flex-col">
+                                    {navLinks.map((link) => (<a key={link.name} href={link.href} onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-base font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-md">{link.name}</a>))}
+                                    <button onClick={() => onNavigate('donate-system')} className="mt-4 w-full bg-orange-600 text-white px-4 py-3 rounded-md font-bold flex justify-center items-center"><HeartHandshake className="w-5 h-5 mr-2" />เข้าสู่ระบบร่วมทำบุญออนไลน์</button>
+                                </div>
+                            </div>
+                        )}
+                    </nav>
+
+                    <section id="home" className="relative h-[85vh] flex items-center justify-center">
+                        <div className="absolute inset-0 w-full h-full"><div className="absolute inset-0 bg-black/50 z-10"></div><img src="https://img2.pic.in.th/IMG_2659.jpg" alt="ภาพวัดไชยามาตย์" className="w-full h-full object-cover" /></div>
+                        <div className="relative z-20 text-center px-4 max-w-4xl mx-auto">
+                            <span className="block text-orange-400 font-semibold tracking-wider mb-2">ยินดีต้อนรับสู่</span>
+                            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-lg">วัดไชยามาตย์</h1>
+                            <p className="text-xl md:text-2xl text-gray-200 mb-8 drop-shadow">ศูนย์รวมจิตใจชาวตำบลเวียงทอง สืบสานพระพุทธศาสนาและวัฒนธรรมล้านนา</p>
+                            <div className="mb-10 inline-block">
+                                <div className="backdrop-blur-md bg-white/10 border border-white/30 rounded-2xl p-6 shadow-2xl transform hover:scale-105 transition duration-300">
+                                    <p className="text-orange-200 text-sm md:text-base font-medium mb-1 uppercase tracking-widest">ยอดบริจาครวมทั้งหมด</p>
+                                    <div className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200 drop-shadow-sm">฿ {totalAmount.toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                <button onClick={() => onNavigate('donate-system')} className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-transform hover:scale-105 shadow-xl border-2 border-orange-500"><HeartHandshake className="w-6 h-6 mr-2" />ร่วมบริจาค / จองโรงทาน</button>
+                                <a href="#about" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-colors border border-white/50">ประวัติความเป็นมา</a>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="about" className="py-20 bg-white">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex flex-col md:flex-row items-start gap-12">
+                                <div className="md:w-1/2 relative">
+                                    <div className="sticky top-24 space-y-4">
+                                        <img src="https://img5.pic.in.th/file/secure-sv1/Gemini_Generated_Image_uwmqsauwmqsauwmq.png" alt="ประวัติวัดไชยามาตย์" className="w-full h-auto rounded-2xl shadow-lg object-cover" />
+                                        <div className="bg-orange-50 p-6 rounded-2xl border-l-4 border-orange-500">
+                                            <h4 className="font-bold text-lg text-gray-800 mb-2">ข้อมูลสังเขป</h4>
+                                            <ul className="space-y-2 text-sm text-gray-700">
+                                                <li>• ก่อตั้งเมื่อปี พ.ศ. ๒๔๑๐ (เดิมชื่อวัดสันป่าแย้)</li>
+                                                <li>• ได้รับวิสุงคามสีมาเมื่อ ๑๗ กรกฎาคม ๒๕๓๐</li>
+                                                <li>• สังกัดคณะสงฆ์มหานิกาย</li>
+                                                <li>• มีศรัทธาบำรุงวัด ๓๕๐ หลังคาเรือน</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="md:w-1/2">
+                                    <div className="flex items-center gap-2 text-orange-600 font-semibold mb-4"><BookOpen className="w-5 h-5" /> ประวัติและข้อมูล</div>
+                                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">ประวัติวัดไชยามาตย์ <span className="text-orange-600">(วัดสันป่าแย้)</span></h2>
+                                    
+                                    <div className="text-gray-600 text-lg leading-relaxed space-y-6 text-justify">
+                                        <p>
+                                            <strong>วัดไชยามาตย์</strong> เดิมชื่อวัดสันป่าแย้ จากการบอกเล่าของผู้สูงอายุเมื่อปีพุทธศักราช ๒๔๑๐ ในสมัยพระบาทสมเด็จพระจุลจอมเกล้าเจ้าอยู่หัว รัชกาลที่ ๕ ดินแดนทางภาคเหนือถูกรุกรานจากพวกจีนฮ่อ <strong>พระยาไชยามาตย์</strong> ได้อพยพผู้คนที่อาศัยอยู่ตอนเหนือสุดของบ้านเวียงทอง มาสร้างที่อยู่ใหม่ชื่อว่า <strong>“บ้านสันป่าแย้”</strong> บริเวณพื้นที่แห่งนี้อุดมสมบรูณ์ มีป่าไม้หนาแน่น พร้อมแม่น้ำยมไหลผ่านตลอดปี จึงก่อตั้งที่อยู่อาศัยใหม่และทำการเกษตรกรรม
+                                        </p>
+                                        <p>
+                                            พื้นที่แห่งนี้เป็นที่ราบสูง (ทางทิศเหนือเรียกว่า ”สัน”) มีสัตว์ชนิดหนึ่งคือ “แย้” อาศัยอยู่จำนวนมากมาย เวลาเกิดน้ำท่วมสัตว์จำนวนมากมายก็จะขึ้นไปอยู่บนสันนั้น ซึ่อถือว่าน้ำท่วมไม่ถึงชาวบ้าน จึงเรียกว่า “บ้านสันป่าแย้” เป็นนามของหมู่บ้าน ต่อมาได้เปลี่ยนชื่อเป็น “บ้านไชยามาตย์” ตามนามของผู้นำหมู่บ้านคือ พระยาไชยามาตย์
+                                        </p>
+                                        <p>
+                                            เมื่อมีผู้คนมาอาศัยจำนวนมาก พระยาไชยามาตย์จึงได้มีความคิดอยากที่จะสร้างวัดเพื่อจะเอาไว้ประกอบพิธีทำบุญในเทศกาลต่างๆ จึงได้ปรึกษากันตั้งวัดหรืออารามขึ้นมา ๑ หลัง คือสร้างวิหารมีขนาดความกว้าง ๘ เมตร ยาว ๑๐ เมตรและได้สร้างพระประธานในวิหาร ๑ องค์ ชื่อว่า <strong>หลวงพ่อไชยา</strong> ซึ่งอยู่ทางทิศตะวันออก ส่วนพระประธานองค์กลางภริยาของท่านสร้างเอาไว้ให้ผู้คนกราบไหว้สักการะ
+                                        </p>
+                                        <p>
+                                            ในปีพุทธศักราช ๒๔๕๔ พระยาไชยามาตย์ได้สร้างวัดขึ้นมาเสร็จสมบูรณ์จึงได้ตั้งชื่อว่า “วัดสันป่าแย้” ตามนามเดิมของหมู่บ้าน ต่อมาได้เปลี่ยนชื่อใหม่เป็น “วัดไชยามาตย์” ตามนามเดิมของผู้สร้างคือพระยาไชยามาตย์ เมื่อปีพุทธศักราช ๒๔๗๘ วัดไชยามาตย์ ตั้งอยู่บ้านไชยามาตย์ หมู่ที่ ๑ และหมู่ที่ ๑๒ ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่
+                                        </p>
+                                        <p>
+                                            ต่อมาเมื่อปีพุทธศักราช ๒๕๔๗ พระเจ้าวรวงค์เธอพระองค์เจ้าโสมสวลีพระวรราชาทินัดดามาตุ ได้เสด็จเยี่ยมวัดไชยามาตย์เป็นการส่วนพระองค์ ได้เสด็จไปทอดพระเนตรที่ตลิ่งพัง ท่านก็รับสั่งให้ผู้ว่าราชการในสมัยนั้นหางบประมาณมาสร้างทำนบกั้นตลิ่งพัง จนถึงทุกวันนี้
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* DYNAMIC NEWS SECTION */}
+                    <NewsSection userRole={userRole} user={user} />
+
+                    <footer id="contact" className="bg-gray-900 text-white pt-16 pb-8">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 border-b border-gray-800 pb-12">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-6"><div className="w-10 h-10 rounded-full bg-orange-600 flex items-center justify-center text-white"><BookOpen className="w-6 h-6" /></div><span className="text-2xl font-bold text-white">วัดไชยามาตย์</span></div>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold mb-6 text-white">ข้อมูลติดต่อ</h3>
+                                    <ul className="space-y-4">
+                                        <li className="flex items-start"><MapPin className="w-5 h-5 text-orange-500 mr-3 mt-1 flex-shrink-0" /><span className="text-gray-400">หมู่ที่ 1 ตำบลเวียงทอง<br/>อำเภอสูงเม่น จังหวัดแพร่ 54130</span></li>
+                                        <li className="flex items-center"><Phone className="w-5 h-5 text-orange-500 mr-3 flex-shrink-0" /><span className="text-gray-400">082-2801992 (สำนักงานวัด)</span></li>
+                                    </ul>
+                                </div>
+                                <div><h3 className="text-lg font-bold mb-6 text-white">เวลาทำการ</h3><p className="text-gray-400">06:00 - 18:00 น. ทุกวัน</p></div>
+                            </div>
+                            <div className="text-center text-gray-500 text-sm"><p>&copy; {new Date().getFullYear()} วัดไชยามาตย์. All rights reserved.</p></div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        // ==========================================
+        // COMPONENT: Dynamic News Section
+        // ==========================================
+        function NewsSection({ userRole, user }) {
+            const [newsList, setNewsList] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [showModal, setShowModal] = useState(false);
+            const [editItem, setEditItem] = useState(null);
+            const [permissionError, setPermissionError] = useState(false);
+
+            useEffect(() => {
+                if (!db || !user) return; // Wait for user authentication
+                
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'news'));
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    docs.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    setNewsList(docs);
+                    setLoading(false);
+                    setPermissionError(false);
+                }, (error) => {
+                    console.error("News fetch error:", error);
+                    if (error.code === 'permission-denied') { setPermissionError(true); }
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, [user]); // Add user to dependency array
+
+            const handleDelete = async (id) => {
+                if(!confirm("ยืนยันการลบข่าวสารนี้?")) return;
+                try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id)); } 
+                catch (e) { alert("ลบไม่สำเร็จ: " + e.message); }
+            };
+
+            const handleSave = async (formData) => {
+                try {
+                    if (formData.id) {
+                        const { id, ...data } = formData;
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id), data);
+                    } else {
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'news'), formData);
+                    }
+                    setShowModal(false);
+                } catch (e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
+            };
+
+            if (permissionError) { return <section className="py-20 bg-orange-50"><div className="text-center text-red-500">Error: Permission Denied. Please allow read access in Firebase Rules.</div></section>; }
+
+            return (
+                <section id="events" className="py-20 bg-orange-50">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="text-center mb-16">
+                            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">ข่าวสารและ<span className="text-orange-600">กิจกรรมบุญ</span></h2>
+                            <p className="text-gray-600 max-w-2xl mx-auto">อัปเดตงานบุญ พิธีการ และกิจกรรมต่างๆ ที่จะจัดขึ้นภายในวัดไชยามาตย์</p>
+                            {(userRole === 'admin' || userRole === 'staff') && (
+                                <button onClick={() => { setEditItem(null); setShowModal(true); }} className="mt-6 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full font-bold flex items-center mx-auto shadow-lg transition"><Plus className="w-5 h-5 mr-2" /> เพิ่มข่าวสารใหม่</button>
+                            )}
+                        </div>
+                        {loading ? <div className="text-center text-gray-500"><Loader className="w-8 h-8 animate-spin mx-auto mb-2"/> กำลังโหลดข่าวสาร...</div> : newsList.length === 0 ? <div className="text-center text-gray-400 py-10 border-2 border-dashed border-gray-300 rounded-xl">ยังไม่มีรายการข่าวสาร</div> : (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                {newsList.map(news => (
+                                    <div key={news.id} className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow overflow-hidden border border-gray-100 flex flex-col h-full relative group">
+                                        {(userRole === 'admin' || userRole === 'staff') && (
+                                            <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                                <button onClick={() => { setEditItem(news); setShowModal(true); }} className="bg-blue-500 text-white p-2 rounded-full shadow hover:bg-blue-600"><Edit className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDelete(news.id)} className="bg-red-500 text-white p-2 rounded-full shadow hover:bg-red-600"><Trash2 className="w-4 h-4" /></button>
+                                            </div>
+                                        )}
+                                        <div className="h-48 bg-gray-200 overflow-hidden relative">
+                                            {news.imageUrl ? <img src={news.imageUrl} alt={news.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400"><ImageIcon className="w-12 h-12" /></div>}
+                                            {news.tag && <div className="absolute top-4 right-4 bg-white text-orange-600 px-3 py-1 rounded-full text-sm font-bold shadow">{news.tag}</div>}
+                                        </div>
+                                        <div className="p-6 flex flex-col flex-grow">
+                                            <div className="flex items-center text-sm text-gray-500 mb-3"><Calendar className="w-4 h-4 mr-2 text-orange-500" /> {new Date(news.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                                            <h3 className="text-xl font-bold text-gray-900 mb-2">{news.title}</h3>
+                                            <p className="text-gray-600 mb-4 line-clamp-3 flex-grow">{news.description}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    {showModal && (<NewsModal item={editItem} onClose={() => setShowModal(false)} onSave={handleSave} />)}
+                </section>
+            );
+        }
+
+        function NewsModal({ item, onClose, onSave }) {
+            const [formData, setFormData] = useState(item || { title: '', date: new Date().toISOString().split('T')[0], description: '', tag: 'ข่าวทั่วไป', imageUrl: '' });
+            const [isUploading, setIsUploading] = useState(false);
+            const handleFileChange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setIsUploading(true);
+                    try { const resized = await resizeImage(file); setFormData({...formData, imageUrl: resized}); } catch (err) { alert("ไม่สามารถอ่านไฟล์ภาพได้"); }
+                    setIsUploading(false);
+                }
+            };
+            const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 animate-scale-up max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-900">{item ? 'แก้ไขข่าวสาร' : 'เพิ่มข่าวสารใหม่'}</h3><button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button></div>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">หัวข้อข่าว</label><input type="text" required className="w-full p-2 border border-gray-300 rounded outline-none" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} /></div>
+                            <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">วันที่</label><input type="date" required className="w-full p-2 border border-gray-300 rounded outline-none" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">ป้ายกำกับ (Tag)</label><input type="text" placeholder="เช่น งานประจำปี" className="w-full p-2 border border-gray-300 rounded outline-none" value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} /></div></div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label><textarea rows="4" required className="w-full p-2 border border-gray-300 rounded outline-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea></div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">รูปภาพประกอบ</label><label className="cursor-pointer block border-2 border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-50 transition text-center"><div className="flex flex-col items-center justify-center">{isUploading ? <Loader className="w-6 h-6 animate-spin text-gray-400" /> : <UploadCloud className="w-6 h-6 text-gray-400 mb-1" />}<span className="text-sm text-gray-600">{formData.imageUrl ? 'เปลี่ยนรูปภาพ' : 'คลิกเพื่ออัปโหลดรูป'}</span></div><input type="file" accept="image/*" className="hidden" onChange={handleFileChange} /></label>{formData.imageUrl && (<div className="mt-2 relative inline-block"><img src={formData.imageUrl} alt="Preview" className="h-32 rounded border object-cover" /><button type="button" onClick={() => setFormData({...formData, imageUrl: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"><X className="w-3 h-3" /></button></div>)}</div>
+                            <button type="submit" disabled={isUploading} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 rounded flex items-center justify-center"><Save className="w-5 h-5 mr-2" /> บันทึกข่าวสาร</button>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        // ==========================================
         // COMPONENT: Donation System
         // ==========================================
         function DonationSystem({ onBack, donations, onAdd, onUpdate, userRole, setUserRole, systemConfig, onUpdateConfig, onResetDatabase }) {
@@ -239,12 +483,10 @@
             const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [showLoginModal, setShowLoginModal] = useState(false);
             const [pendingRole, setPendingRole] = useState(null); 
-            const [roleMenuOpen, setRoleMenuOpen] = useState(false);
 
             const showNotification = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
             
-            const handleSelectRole = (newRole) => {
-                setRoleMenuOpen(false);
+            const handleRoleSwitch = (newRole) => {
                 if (newRole === 'donor') { 
                     setUserRole('donor'); 
                     setIsAuthenticated(false); 
@@ -271,7 +513,7 @@
                             role={pendingRole}
                             onClose={() => setShowLoginModal(false)}
                             onLoginSuccess={() => { 
-                                setUserRole(pendingRole); 
+                                setUserRole(pendingRole); // Now correctly updates App state
                                 setIsAuthenticated(true); 
                                 setShowLoginModal(false); 
                                 showNotification(`เข้าสู่ระบบในฐานะ ${pendingRole === 'staff' ? 'เจ้าหน้าที่' : 'ผู้ดูแลระบบ'} สำเร็จ`); 
@@ -279,7 +521,7 @@
                         />
                     )}
 
-                    <header className="bg-orange-600 text-white shadow-md no-print relative z-30">
+                    <header className="bg-orange-600 text-white shadow-md no-print">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-4 w-full sm:w-auto">
                                 <button onClick={onBack} className="p-2 bg-orange-700 hover:bg-orange-800 rounded-full transition-colors shrink-0" title="กลับหน้าเว็บไซต์หลัก"><ArrowLeft className="w-6 h-6" /></button>
@@ -292,30 +534,24 @@
                                         <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white p-1 rounded transition-colors"><LogOut className="w-4 h-4" /></button>
                                     </div>
                                 ) : (
-                                    <div className="relative">
-                                        <button 
-                                            onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                                            className="flex items-center gap-2 bg-white text-orange-800 rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-50 transition shadow-sm"
+                                    <div className="flex items-center gap-2 text-sm bg-orange-700 p-2 rounded-lg">
+                                        <span className="font-medium whitespace-nowrap flex items-center gap-1"><Lock className="w-3 h-3"/> เข้าใช้งาน:</span>
+                                        <select 
+                                            className="bg-white text-gray-800 rounded px-2 py-1 outline-none w-full sm:w-auto text-xs sm:text-sm cursor-pointer"
+                                            value={userRole}
+                                            onChange={(e) => handleRoleSwitch(e.target.value)}
                                         >
-                                            <Lock className="w-4 h-4" /> 
-                                            <span>เข้าใช้งาน: {userRole === 'donor' ? 'ผู้บริจาค (ทั่วไป)' : userRole}</span>
-                                            <ChevronDown className="w-4 h-4" />
-                                        </button>
-                                        
-                                        {roleMenuOpen && (
-                                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl overflow-hidden z-50 border border-gray-100 animate-scale-up">
-                                                <button onClick={() => handleSelectRole('donor')} className="w-full text-left px-4 py-3 hover:bg-orange-50 text-sm text-gray-700 flex items-center"><User className="w-4 h-4 mr-2 text-gray-400"/> ผู้บริจาค (Guest)</button>
-                                                <button onClick={() => handleSelectRole('staff')} className="w-full text-left px-4 py-3 hover:bg-orange-50 text-sm text-gray-700 flex items-center border-t border-gray-100"><ShieldCheck className="w-4 h-4 mr-2 text-blue-500"/> หน่วยรับบริจาค</button>
-                                                <button onClick={() => handleSelectRole('admin')} className="w-full text-left px-4 py-3 hover:bg-orange-50 text-sm text-gray-700 flex items-center border-t border-gray-100"><Settings className="w-4 h-4 mr-2 text-red-500"/> ผู้ดูแลระบบ</button>
-                                            </div>
-                                        )}
+                                            <option value="donor">ผู้บริจาค (Guest)</option>
+                                            <option value="staff">หน่วยรับบริจาค (Staff)</option>
+                                            <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                                        </select>
                                     </div>
                                 )}
                             </div>
                         </div>
                     </header>
 
-                    <nav className="bg-white shadow-sm sticky top-0 z-20 no-print">
+                    <nav className="bg-white shadow-sm sticky top-0 z-10 no-print">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex space-x-4 overflow-x-auto hide-scrollbar">
                                 <button onClick={() => setActiveTab('donate')} className={`flex items-center px-4 py-3 border-b-2 font-medium whitespace-nowrap ${activeTab === 'donate' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><PlusCircle className="w-5 h-5 mr-2 shrink-0" /> {userRole === 'donor' ? 'บริจาคออนไลน์' : 'บันทึกรับบริจาค'}</button>
@@ -327,7 +563,7 @@
                         </div>
                     </nav>
 
-                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 print-container relative z-10">
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 print-container">
                         {notification && <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded flex items-center justify-between no-print"><span>{notification}</span><button onClick={() => setNotification(null)}><X className="w-5 h-5"/></button></div>}
                         
                         {activeTab === 'donate' && (
@@ -351,55 +587,77 @@
         }
 
         // ==========================================
-        // COMPONENT: Login Modal
+        // COMPONENT: Settings Panel (Updated)
         // ==========================================
-        function LoginModal({ role, onClose, onLoginSuccess }) {
-            const [password, setPassword] = useState('');
-            const [error, setError] = useState('');
-            
-            const handleSubmit = (e) => { 
-                e.preventDefault(); 
-                if (role === 'staff' && password === '104') {
-                    onLoginSuccess();
-                } else if (role === 'admin' && password === 'admin104') {
-                    onLoginSuccess();
-                } else {
-                    setError('รหัสผ่านไม่ถูกต้อง');
+        function SettingsPanel({ config, onSave, onResetDatabase }) {
+            const [data, setData] = useState(config);
+
+            const handleChange = (key, value) => {
+                setData({ ...data, [key]: value });
+            };
+
+            const confirmReset = () => {
+                if (confirm('คำเตือน: คุณต้องการ "ล้างข้อมูลการบริจาคทั้งหมด" ใช่หรือไม่?\n\n- ข้อมูลประวัติการบริจาคทั้งหมดจะถูกลบถาวร\n- ข่าวสารจะไม่ถูกลบ\n- การตั้งค่าจะไม่ถูกลบ\n\nแนะนำให้ดาวน์โหลดรายงาน (CSV) ในหน้าสรุปยอดเก็บไว้ก่อน')) {
+                    if (confirm('ยืนยันครั้งสุดท้าย: ลบข้อมูลทั้งหมดจริงหรือไม่? การกระทำนี้ไม่สามารถกู้คืนได้')) {
+                        onResetDatabase();
+                    }
                 }
             };
 
             return (
-                <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-scale-up">
-                        <div className="flex justify-between items-center mb-6 pb-2 border-b">
-                            <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                <Lock className="w-5 h-5 mr-2 text-orange-600" /> 
-                                เข้าสู่ระบบ ({role === 'staff' ? 'เจ้าหน้าที่' : 'ผู้ดูแล'})
-                            </h3>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition"><X className="w-6 h-6" /></button>
+                <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+                    <div className="bg-gray-100 px-6 py-4 border-b border-gray-200">
+                        <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                            <Settings className="w-6 h-6 mr-2" /> ตั้งค่าระบบรับบริจาค
+                        </h2>
+                        <p className="text-sm text-gray-500 mt-1">กำหนดชื่องานบุญปัจจุบันและสถานะการเปิดรับบริจาค</p>
+                    </div>
+                    <div className="p-6 space-y-6">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">ชื่องานบุญปัจจุบัน (แสดงในฟอร์มบริจาค)</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+                                value={data.eventName}
+                                onChange={(e) => handleChange('eventName', e.target.value)}
+                                placeholder="เช่น ร่วมทำบุญทอดกฐินสามัคคี"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">ชื่อนี้จะปรากฏเป็นตัวเลือกแรกในแบบฟอร์มการบริจาค</p>
                         </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="mb-6">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">รหัสผ่าน</label>
-                                <input 
-                                    type="password" 
-                                    className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition" 
-                                    placeholder="กรุณากรอกรหัสผ่าน..."
-                                    value={password} 
-                                    onChange={(e) => setPassword(e.target.value)} 
-                                    autoFocus 
-                                />
-                                {error && <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-1"/> {error}</p>}
+                        <div className="flex items-center justify-between bg-orange-50 p-4 rounded-lg border border-orange-100">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700">เปิดรับบริจาคออนไลน์</label>
+                                <p className="text-xs text-gray-500">หากปิด ผู้บริจาคทั่วไปจะไม่เห็นแบบฟอร์ม (แต่เจ้าหน้าที่ยังใช้งานได้)</p>
                             </div>
-                            <button type="submit" className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg shadow-md transition transform hover:scale-[1.02]">
-                                ยืนยันเข้าใช้งาน
-                            </button>
-                        </form>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only peer" 
+                                    checked={data.isOnline}
+                                    onChange={(e) => handleChange('isOnline', e.target.checked)}
+                                />
+                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                            </label>
+                        </div>
+                        <button onClick={() => onSave(data)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg flex items-center justify-center transition"><Save className="w-5 h-5 mr-2" /> บันทึกการตั้งค่า</button>
+                        <hr className="border-gray-200" />
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                                <div className="bg-red-100 p-2 rounded-full"><AlertTriangle className="w-6 h-6 text-red-600" /></div>
+                                <div>
+                                    <h3 className="text-red-700 font-bold">เริ่มงานบุญใหม่ (ล้างข้อมูลเก่า)</h3>
+                                    <p className="text-sm text-red-600 mt-1">ใช้เมื่อสิ้นสุดงานบุญและต้องการเคลียร์ข้อมูลผู้บริจาคทั้งหมดเพื่อเริ่มนับใหม่ <br/><strong>โปรดดาวน์โหลดรายงานเก็บไว้ก่อนกดปุ่มนี้</strong></p>
+                                    <button onClick={confirmReset} className="mt-3 bg-white border border-red-300 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center"><Trash2 className="w-4 h-4 mr-2" /> ล้างข้อมูลการบริจาคทั้งหมด</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
         }
 
+        // ... DonationForm, EditModal, Dashboard, AnnouncerPanel, ApprovalPanel, OfficialWebsite, NewsSection, NewsModal, LoginModal same as before ...
+        
         // ==========================================
         // COMPONENT: Donation Form
         // ==========================================
@@ -491,7 +749,6 @@
                     slipImage: slipImage 
                 };
                 onSave(newDonation);
-                // Reset after save
                 setName(''); setMethod('เงินโอน'); setGeneralNote(''); setSlipImage(null);
                 setItems({ general: { checked: false, amount: '' }, thaiTaan: { checked: false, sets: 1 }, huaWat: { checked: false, sets: 1 }, roongTaan: { checked: false, date: '', note: '' } });
             };
@@ -517,7 +774,7 @@
                     </div>
                     
                     {showQRZoom && (
-                        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 animate-scale-up" onClick={() => setShowQRZoom(false)}>
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-scale-up" onClick={() => setShowQRZoom(false)}>
                             <div className="relative bg-white p-4 rounded-xl shadow-2xl max-w-lg w-full text-center">
                                 <img src="https://img2.pic.in.th/pic/099400240646898.png" alt="QR Code" className="w-full h-auto object-contain rounded-lg" />
                                 <p className="mt-4 text-lg font-bold text-gray-800">ธนาคารกรุงไทย | วัดไชยามาตย์</p>
@@ -651,7 +908,7 @@
                 onSave(formData); onClose();
             };
             return (
-                <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 animate-scale-up max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6 pb-2 border-b"><h3 className="text-xl font-bold text-gray-900 flex items-center"><Pencil className="w-5 h-5 mr-2 text-orange-600" /> แก้ไขข้อมูลบริจาค</h3><button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="space-y-4">
@@ -711,7 +968,7 @@
             return (
                 <div className="space-y-6">
                     {editingDonation && (<EditModal donation={editingDonation} userRole={userRole} onClose={() => setEditingDonation(null)} onSave={onUpdateDonation} />)}
-                    {viewSlip && (<div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4" onClick={() => setViewSlip(null)}><div className="relative max-w-3xl max-h-full"><img src={viewSlip} alt="Full Slip" className="max-w-full max-h-[90vh] rounded shadow-lg" /><button className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow" onClick={() => setViewSlip(null)}><X className="w-6 h-6" /></button></div></div>)}
+                    {viewSlip && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setViewSlip(null)}><div className="relative max-w-3xl max-h-full"><img src={viewSlip} alt="Full Slip" className="max-w-full max-h-[90vh] rounded shadow-lg" /><button className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow" onClick={() => setViewSlip(null)}><X className="w-6 h-6" /></button></div></div>)}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 no-print">
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center"><ClipboardList className="w-6 h-6 mr-2 text-orange-600" /> สรุปยอดและรายงาน</h2>
                         <div className="flex gap-2 w-full sm:w-auto"><button onClick={() => window.print()} className="flex-1 sm:flex-none flex items-center justify-center bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm transition-colors"><Printer className="w-4 h-4 mr-2" /> พิมพ์ / PDF</button><button onClick={exportCSV} className="flex-1 sm:flex-none flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"><FileText className="w-4 h-4 mr-2" /> CSV / Excel</button></div>
@@ -736,7 +993,7 @@
             const [viewSlip, setViewSlip] = useState(null);
             return (
                 <div className="space-y-4 no-print">
-                    {viewSlip && (<div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4" onClick={() => setViewSlip(null)}><div className="relative max-w-3xl max-h-full"><img src={viewSlip} alt="Full Slip" className="max-w-full max-h-[90vh] rounded shadow-lg" /><button className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow" onClick={() => setViewSlip(null)}><X className="w-6 h-6" /></button></div></div>)}
+                    {viewSlip && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setViewSlip(null)}><div className="relative max-w-3xl max-h-full"><img src={viewSlip} alt="Full Slip" className="max-w-full max-h-[90vh] rounded shadow-lg" /><button className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow" onClick={() => setViewSlip(null)}><X className="w-6 h-6" /></button></div></div>)}
                     <h2 className="text-xl font-bold flex items-center mb-4"><ShieldCheck className="w-6 h-6 mr-2 text-orange-600"/> รายการรออนุมัติ ({pending.length})</h2>
                     {pending.length === 0 ? (<div className="bg-white p-8 text-center rounded-xl shadow-sm border"><CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-2" /><h3 className="font-medium">ไม่มีรายการค้าง</h3></div>) : (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{pending.map(d => (<div key={d.id} className="bg-white rounded-xl shadow border border-yellow-200 flex flex-col"><div className="p-4 flex-grow"><div className="text-xs text-gray-500 mb-1">{new Date(d.dateTime).toLocaleString('th-TH')}</div><div className="font-bold text-lg mb-2">{d.name}</div><div className="text-sm space-y-1 text-gray-600 mb-3"><div className="line-clamp-2"><span className="font-medium">รายการ:</span> {d.purpose}</div><div><span className="font-medium">ช่องทาง:</span> {d.method}</div>{d.slipImage && <div className="mt-2"><button onClick={() => setViewSlip(d.slipImage)} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded flex items-center w-fit hover:bg-blue-100"><ImageIcon className="w-3 h-3 mr-1" /> ดูสลิปโอนเงิน</button></div>}</div><div className="text-xl font-bold text-orange-600 mb-2">{d.amount.toLocaleString()} ฿</div>{d.generalNote && <div className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded">"{d.generalNote}"</div>}</div><div className="flex border-t bg-gray-50"><button onClick={() => onApprove(d.id)} className="flex-1 py-3 text-green-700 font-bold hover:bg-green-100 flex justify-center border-r"><Check className="w-5 h-5 mr-1"/> อนุมัติ</button><button onClick={() => onReject(d.id)} className="flex-1 py-3 text-red-600 font-bold hover:bg-red-50 flex justify-center"><X className="w-5 h-5 mr-1"/> ปฏิเสธ</button></div></div>))}</div>)}
                 </div>
