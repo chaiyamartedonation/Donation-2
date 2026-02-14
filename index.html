@@ -2,29 +2,29 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>วัดไชยามาตย์ Digital Platform</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>วัดไชยามาตย์ - ระบบรับบริจาคดิจิทัล</title>
 
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
-
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+<style>
+body { font-family: 'Sarabun', sans-serif; background:#f8fafc; }
+</style>
 </head>
-<body class="bg-gray-100">
+<body>
 <div id="root"></div>
 
-<!-- Firebase -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getFirestore, collection, addDoc, updateDoc, doc,
-  onSnapshot, query, orderBy, deleteDoc, getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import {
-  getStorage, ref, uploadBytes, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+<script type="text/babel" data-type="module">
+
+import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
+import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+/* ================= Firebase ================= */
 
 const firebaseConfig = {
   apiKey: "AIzaSyAHuvRRTNpYuh8MFiIwN4Lm106l09BED14",
@@ -32,396 +32,196 @@ const firebaseConfig = {
   projectId: "donation-1b152",
   storageBucket: "donation-1b152.firebasestorage.app",
   messagingSenderId: "203853712269",
-  appId: "1:203853712269:web:80441cd834e7b0e68dcbc4",
-  measurementId: "G-10ZKFX0TET"
+  appId: "1:203853712269:web:80441cd834e7b0e68dcbc4"
 };
 
 const app = initializeApp(firebaseConfig);
-window.db = getFirestore(app);
-window.storage = getStorage(app);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-window.fb = {
-  collection, addDoc, updateDoc, doc,
-  onSnapshot, query, orderBy,
-  ref, uploadBytes, getDownloadURL,
-  deleteDoc, getDocs
-};
-</script>
-
-<script type="text/babel">
-
-const { useState, useEffect } = React;
-
-const ROLES = {
-  GUEST: "guest",
-  STAFF: "staff",
-  ADMIN: "admin"
-};
-
-const DONATION_PATH = "artifacts/temple-donation-app/public/data/donations";
-const NEWS_PATH = "artifacts/temple-donation-app/public/data/news";
+/* ================= App ================= */
 
 function App() {
 
-  const [role, setRole] = useState(ROLES.GUEST);
+  const [page, setPage] = useState('home');
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState('donor');
   const [donations, setDonations] = useState([]);
-  const [news, setNews] = useState([]);
-  const [onlineEnabled, setOnlineEnabled] = useState(true);
-  const [currentEvent, setCurrentEvent] = useState("งานบุญประจำปี");
+  const [systemConfig, setSystemConfig] = useState({
+    eventName: "บริจาคทั่วไป",
+    isOnline: true
+  });
 
-  /* ================= REALTIME DONATIONS ================= */
+  /* ===== Auth ===== */
   useEffect(() => {
-    const q = fb.query(
-      fb.collection(db, DONATION_PATH),
-      fb.orderBy("createdAt", "desc")
-    );
+    signInAnonymously(auth);
+    onAuthStateChanged(auth, (u)=> setUser(u));
+  }, []);
 
-    const unsub = fb.onSnapshot(q, snap => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  /* ===== Realtime Donations ===== */
+  useEffect(() => {
+    const q = query(collection(db, "donations"), orderBy("dateTime", "desc"));
+    const unsub = onSnapshot(q, (snap)=>{
+      const data = snap.docs.map(d => ({ id:d.id, ...d.data() }));
       setDonations(data);
     });
-
-    return () => unsub();
+    return ()=>unsub();
   }, []);
 
-  /* ================= REALTIME NEWS ================= */
-  useEffect(() => {
-    const q = fb.query(
-      fb.collection(db, NEWS_PATH),
-      fb.orderBy("createdAt", "desc")
-    );
-
-    const unsub = fb.onSnapshot(q, snap => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setNews(data);
-    });
-
-    return () => unsub();
-  }, []);
-
-  /* ================= SUBMIT DONATION ================= */
-  const submitDonation = async (data, slipFile) => {
-    try {
-
-      if (!onlineEnabled) {
-        alert("ปิดรับบริจาคออนไลน์");
-        return;
-      }
-
-      let slipURL = null;
-
-      if (slipFile) {
-        const slipRef = fb.ref(
-          storage,
-          `slips/${Date.now()}_${slipFile.name}`
-        );
-        await fb.uploadBytes(slipRef, slipFile);
-        slipURL = await fb.getDownloadURL(slipRef);
-      }
-
-      await fb.addDoc(
-        fb.collection(db, DONATION_PATH),
-        {
-          ...data,
-          slipURL,
-          status: role === ROLES.STAFF ? "approved" : "pending",
-          createdAt: new Date()
-        }
-      );
-
-      alert("บันทึกเรียบร้อย");
-
-    } catch (err) {
-      console.error(err);
-      alert("เกิดข้อผิดพลาด");
-    }
+  /* ===== Add Donation ===== */
+  const addDonation = async (data) => {
+    await addDoc(collection(db,"donations"), data);
   };
 
-  /* ================= APPROVE ================= */
-  const approveDonation = async (id) => {
-    const refDoc = fb.doc(db, DONATION_PATH, id);
-    await fb.updateDoc(refDoc, { status: "approved" });
+  /* ===== Update Donation ===== */
+  const updateDonation = async (data) => {
+    const { id, ...rest } = data;
+    await updateDoc(doc(db,"donations",id), rest);
   };
 
-  /* ================= RESET DATABASE ================= */
-  const resetDatabase = async () => {
-    if (!confirm("ยืนยันล้างข้อมูลทั้งหมด?")) return;
+  return (
+    <>
+      {page === 'home' ? (
+        <OfficialWebsite
+          donations={donations}
+          onNavigate={setPage}
+          userRole={userRole}
+          setUserRole={setUserRole}
+        />
+      ) : (
+        <DonationSystem
+          donations={donations}
+          onBack={()=>setPage('home')}
+          onAdd={addDonation}
+          onUpdate={updateDonation}
+          userRole={userRole}
+          setUserRole={setUserRole}
+          systemConfig={systemConfig}
+        />
+      )}
+    </>
+  );
+}
 
-    const snap = await fb.getDocs(fb.collection(db, DONATION_PATH));
-    for (const d of snap.docs) {
-      await fb.deleteDoc(d.ref);
-    }
+/* ================= Official Website ================= */
 
-    alert("ล้างข้อมูลเสร็จสิ้น");
-  };
+function OfficialWebsite({ donations, onNavigate }) {
+
+  const approved = donations.filter(d=>d.status==="approved");
+
+  const total = useMemo(()=>{
+    return approved.reduce((s,d)=> s + d.amount,0);
+  },[approved]);
 
   return (
     <div>
 
-      <Navbar role={role} setRole={setRole} />
-
-      <Hero />
-
-      <DonationForm
-        submitDonation={submitDonation}
-        currentEvent={currentEvent}
-      />
-
-      <NewsSection news={news} role={role} />
-
-      {role !== ROLES.GUEST &&
-        <Dashboard
-          donations={donations}
-          approveDonation={approveDonation}
-        />
-      }
-
-      {role === ROLES.ADMIN &&
-        <Settings
-          onlineEnabled={onlineEnabled}
-          setOnlineEnabled={setOnlineEnabled}
-          currentEvent={currentEvent}
-          setCurrentEvent={setCurrentEvent}
-          resetDatabase={resetDatabase}
-        />
-      }
-
-      <Announcer donations={donations} />
-
-    </div>
-  );
-}
-
-/* ================= NAVBAR ================= */
-function Navbar({ role, setRole }) {
-  return (
-    <div className="bg-yellow-600 text-white p-4 flex justify-between">
-      <div>วัดไชยามาตย์ Digital Platform</div>
-      <select
-        className="text-black p-1 rounded"
-        value={role}
-        onChange={e => setRole(e.target.value)}
-      >
-        <option value="guest">ผู้บริจาค</option>
-        <option value="staff">เจ้าหน้าที่</option>
-        <option value="admin">Admin</option>
-      </select>
-    </div>
-  );
-}
-
-/* ================= HERO ================= */
-function Hero() {
-  return (
-    <div className="text-center py-10 bg-white shadow">
-      <h1 className="text-3xl font-bold">ร่วมทำบุญสร้างกุศล</h1>
-      <p className="text-gray-600 mt-2">วัดไชยามาตย์</p>
-    </div>
-  );
-}
-
-/* ================= DONATION FORM ================= */
-function DonationForm({ submitDonation, currentEvent }) {
-
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [slipFile, setSlipFile] = useState(null);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    submitDonation({
-      name,
-      amount: parseFloat(amount),
-      type: currentEvent
-    }, slipFile);
-
-    setName("");
-    setAmount("");
-    setSlipFile(null);
-  };
-
-  return (
-    <div className="max-w-md mx-auto mt-6 bg-white p-6 shadow rounded">
-      <h2 className="font-bold mb-4">{currentEvent}</h2>
-
-      <form onSubmit={handleSubmit}>
-        <input
-          className="border p-2 w-full mb-3"
-          placeholder="ชื่อผู้บริจาค"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          required
-        />
-
-        <input
-          type="number"
-          className="border p-2 w-full mb-3"
-          placeholder="จำนวนเงิน"
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-          required
-        />
-
-        <input
-          type="file"
-          accept="image/*"
-          className="mb-3"
-          onChange={e => setSlipFile(e.target.files[0])}
-        />
-
-        <button className="bg-yellow-600 text-white w-full py-2 rounded">
+      <header className="bg-gray-900 text-white text-center py-20">
+        <h1 className="text-4xl font-bold mb-4">วัดไชยามาตย์</h1>
+        <p>ยอดเงินรวม {total.toLocaleString()} บาท</p>
+        <button
+          onClick={()=>onNavigate('system')}
+          className="mt-6 bg-orange-600 px-6 py-3 rounded-lg font-bold"
+        >
           ร่วมทำบุญ
         </button>
-      </form>
+      </header>
+
+      {/* Public Donor List */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow p-6">
+          <h2 className="text-2xl font-bold mb-4 text-center">
+            รายชื่อผู้ร่วมทำบุญ
+          </h2>
+
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-3 text-left">ชื่อ</th>
+                <th className="p-3 text-right">ยอดเงิน</th>
+                <th className="p-3 text-left">วันที่</th>
+              </tr>
+            </thead>
+            <tbody>
+              {approved.map(d=>(
+                <tr key={d.id} className="border-t">
+                  <td className="p-3">{d.name}</td>
+                  <td className="p-3 text-right font-bold text-orange-600">
+                    {d.amount.toLocaleString()}
+                  </td>
+                  <td className="p-3">
+                    {new Date(d.dateTime).toLocaleDateString('th-TH')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </div>
   );
 }
 
-/* ================= DASHBOARD ================= */
-function Dashboard({ donations, approveDonation }) {
+/* ================= Donation System ================= */
 
-  const total = donations
-    .filter(d => d.status === "approved")
-    .reduce((sum, d) => sum + (d.amount || 0), 0);
+function DonationSystem({ donations, onBack, onAdd, onUpdate, userRole }) {
 
-  const exportCSV = () => {
-    const headers = ["ชื่อ", "จำนวนเงิน", "สถานะ"];
-    const rows = donations.map(d => [
-      d.name,
-      d.amount,
-      d.status
-    ]);
+  const [form,setForm] = useState({ name:'', amount:'' });
 
-    let csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers, ...rows].map(e => e.join(",")).join("\n");
-
-    const link = document.createElement("a");
-    link.href = encodeURI(csvContent);
-    link.download = "donations.csv";
-    link.click();
+  const handleSubmit = (e)=>{
+    e.preventDefault();
+    onAdd({
+      name: form.name,
+      amount: Number(form.amount),
+      status: userRole==='donor'?'pending':'approved',
+      dateTime: new Date().toISOString()
+    });
+    setForm({name:'',amount:''});
   };
 
   return (
-    <div className="max-w-4xl mx-auto mt-8">
+    <div className="max-w-3xl mx-auto p-6">
 
-      <div className="text-xl font-bold mb-2">
-        ยอดรวม: {total.toLocaleString()} บาท
-      </div>
-
-      <button
-        onClick={exportCSV}
-        className="bg-blue-600 text-white px-4 py-2 rounded mb-4"
-      >
-        ดาวน์โหลด CSV
+      <button onClick={onBack} className="mb-6 text-blue-600">
+        ← กลับหน้าแรก
       </button>
 
-      <table className="w-full bg-white shadow">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="p-2">ชื่อ</th>
-            <th className="p-2">จำนวน</th>
-            <th className="p-2">สถานะ</th>
-            <th className="p-2">สลิป</th>
-            <th className="p-2">จัดการ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {donations.map(d => (
-            <tr key={d.id} className="border-t">
-              <td className="p-2">{d.name}</td>
-              <td className="p-2">{d.amount}</td>
-              <td className="p-2">{d.status}</td>
-              <td className="p-2">
-                {d.slipURL &&
-                  <a href={d.slipURL} target="_blank" className="text-blue-600">
-                    ดูสลิป
-                  </a>
-                }
-              </td>
-              <td className="p-2">
-                {d.status === "pending" &&
-                  <button
-                    onClick={() => approveDonation(d.id)}
-                    className="bg-green-600 text-white px-2 py-1 rounded"
-                  >
-                    อนุมัติ
-                  </button>
-                }
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow space-y-4">
+        <input
+          className="w-full border p-3 rounded"
+          placeholder="ชื่อผู้บริจาค"
+          value={form.name}
+          onChange={e=>setForm({...form,name:e.target.value})}
+          required
+        />
+        <input
+          type="number"
+          className="w-full border p-3 rounded"
+          placeholder="จำนวนเงิน"
+          value={form.amount}
+          onChange={e=>setForm({...form,amount:e.target.value})}
+          required
+        />
+        <button className="w-full bg-orange-600 text-white py-3 rounded font-bold">
+          บันทึก
+        </button>
+      </form>
 
-/* ================= NEWS ================= */
-function NewsSection({ news }) {
-  return (
-    <div className="max-w-3xl mx-auto mt-8">
-      <h2 className="text-xl font-bold mb-2">ข่าวสาร</h2>
-      {news.map(n => (
-        <div key={n.id} className="bg-white p-3 shadow mb-2">
-          {n.text}
+      <h3 className="mt-10 text-xl font-bold">รายการทั้งหมด</h3>
+      {donations.map(d=>(
+        <div key={d.id} className="border-b py-2 flex justify-between">
+          <span>{d.name}</span>
+          <span>{d.amount.toLocaleString()}</span>
         </div>
       ))}
+
     </div>
   );
 }
 
-/* ================= SETTINGS ================= */
-function Settings({
-  onlineEnabled, setOnlineEnabled,
-  currentEvent, setCurrentEvent,
-  resetDatabase
-}) {
-  return (
-    <div className="max-w-md mx-auto mt-8 bg-white p-6 shadow rounded">
-      <h2 className="font-bold mb-4">ตั้งค่า</h2>
+createRoot(document.getElementById('root')).render(<App />);
 
-      <input
-        className="border p-2 w-full mb-3"
-        value={currentEvent}
-        onChange={e => setCurrentEvent(e.target.value)}
-      />
-
-      <button
-        onClick={() => setOnlineEnabled(!onlineEnabled)}
-        className="bg-blue-600 text-white w-full py-2 rounded mb-3"
-      >
-        {onlineEnabled ? "ปิดรับบริจาค" : "เปิดรับบริจาค"}
-      </button>
-
-      <button
-        onClick={resetDatabase}
-        className="bg-red-600 text-white w-full py-2 rounded"
-      >
-        ล้างข้อมูลทั้งหมด
-      </button>
-    </div>
-  );
-}
-
-/* ================= ANNOUNCER ================= */
-function Announcer({ donations }) {
-  const approved = donations.filter(d => d.status === "approved");
-
-  return (
-    <div className="bg-black text-white text-center py-10 mt-10">
-      <h2 className="text-3xl mb-4">โหมดโฆษก</h2>
-      {approved.map(d => (
-        <div key={d.id} className="text-2xl mb-2">
-          คุณ {d.name} ร่วมทำบุญ {d.amount} บาท
-        </div>
-      ))}
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 </body>
 </html>
