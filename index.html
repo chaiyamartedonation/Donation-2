@@ -8,7 +8,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Google Fonts (Load all potential fonts statically for better performance) -->
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600;700&family=Mali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Babel for JSX -->
@@ -60,13 +60,12 @@
         if (typeof __firebase_config === 'undefined') {
             console.warn("Running in standalone mode. Firebase features will be simulated or fail gracefully.");
             window.__firebase_config = JSON.stringify({
-                  apiKey: "AIzaSyAHuvRRTNpYuh8MFiIwN4Lm106l09BED14",
-                  authDomain: "donation-1b152.firebaseapp.com",
-                  projectId: "donation-1b152",
-                  storageBucket: "donation-1b152.firebasestorage.app",
-                  messagingSenderId: "203853712269",
-                  appId: "1:203853712269:web:80441cd834e7b0e68dcbc4",
-                  measurementId: "G-10ZKFX0TET"
+                apiKey: "demo-key",
+                authDomain: "demo.firebaseapp.com",
+                projectId: "demo-project",
+                storageBucket: "demo.appspot.com",
+                messagingSenderId: "000000000",
+                appId: "1:00000000:web:00000000"
             });
             window.__app_id = 'temple-demo';
         }
@@ -123,7 +122,7 @@
             systemStatus: 'open', 
             templeName: 'วัดไชยามาตย์',
             themeColor: 'orange', 
-            fontFamily: 'Prompt', // Changed default from Sarabun to Prompt
+            fontFamily: 'Prompt', // Default font
             bannerUrl: 'https://images.unsplash.com/photo-1590484501469-808ceea194f4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80',
             qrCodeUrl: 'https://img2.pic.in.th/pic/099400240646898.png',
             marqueeText: 'ขอเชิญร่วมทำบุญตามกำลังศรัทธา... สะสมบุญ นำสุขมาให้',
@@ -232,7 +231,6 @@
                         }
                     } catch (error) {
                         console.error("Auth error:", error);
-                        // Still allow viewing static content even if auth fails
                         setLoading(false);
                     }
                 };
@@ -244,7 +242,7 @@
                 return () => unsubscribe();
             }, []);
 
-            // Fetch Settings
+            // Fetch Settings with Fallback for Permissions
             useEffect(() => {
                 if (!user) return;
                 const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
@@ -253,17 +251,20 @@
                     if (docSnap.exists()) {
                         setSettings({ ...DEFAULT_SETTINGS, ...docSnap.data() });
                     } else {
-                        // Only try to set initial settings if we have permission, otherwise fallback
-                        setDoc(settingsRef, DEFAULT_SETTINGS).catch(err => console.warn("Init settings failed (likely permission):", err));
+                        // Attempt to set defaults, if fail (permission), just use memory defaults
+                        setDoc(settingsRef, DEFAULT_SETTINGS).catch(err => {
+                            console.warn("Using default settings (Server sync skipped):", err.code);
+                        });
                     }
                 }, (error) => {
-                    console.error("Settings listener error:", error);
+                    console.warn("Settings fetch warning:", error.code);
+                    // Do not show error to user, just stick with defaults
                 });
                 
                 return () => unsubscribe();
             }, [user]);
 
-            // Fetch Donations
+            // Fetch Donations with Fallback
             useEffect(() => {
                 if (!user) return;
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'donations'));
@@ -276,7 +277,7 @@
                 }, (error) => {
                     console.error("Donations fetch error:", error);
                     setLoading(false); 
-                    // showNotification("ไม่สามารถดึงข้อมูลได้ (Permission Denied)", 'error');
+                    // Silent fail for donations if permission denied (likely restricted mode)
                 });
                 
                 return () => unsubscribe();
@@ -288,7 +289,8 @@
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'donations'), newDonation);
                     showNotification('บันทึกข้อมูลสำเร็จ');
                 } catch (e) {
-                    showNotification("เกิดข้อผิดพลาด: " + e.message, 'error');
+                    console.error(e);
+                    showNotification("บันทึกไม่สำเร็จ (อาจไม่มีสิทธิ์เขียนข้อมูล)", 'error');
                 }
             };
 
@@ -778,7 +780,7 @@
 
             const handleUpdateDonationType = (index, field, value) => {
                 const newTypes = [...config.donationTypes];
-                newTypes.splice(index, 1);
+                newTypes[index] = { ...newTypes[index], [field]: value };
                 setConfig({...config, donationTypes: newTypes});
             };
 
