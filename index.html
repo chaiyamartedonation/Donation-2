@@ -31,7 +31,7 @@
     <style>
         /* Base styles */
         body { 
-            font-family: 'Prompt', sans-serif; /* Default Fallback */
+            font-family: 'Prompt', sans-serif; 
         }
         
         /* Custom Animations */
@@ -52,6 +52,10 @@
         /* Hide Scrollbar */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Line Clamp */
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     </style>
 </head>
 <body>
@@ -66,7 +70,7 @@
             Menu, ChevronRight, Download, Printer, Lock, LogOut, FileText, Megaphone, 
             Mic, RotateCcw, CalendarDays, Pencil, Save, Key, QrCode, ShoppingBag, 
             UploadCloud, Image as ImageIcon, Loader, Info, Settings, Trash2, AlertTriangle, 
-            Plus, LogIn, Facebook, MessageCircle, Palette, Bell, FileCheck, Type
+            Plus, LogIn, Facebook, MessageCircle, Palette, Bell, FileCheck, Type, Newspaper, Edit, Layout
         } from 'lucide-react';
         import { initializeApp } from "firebase/app";
         import { 
@@ -118,6 +122,13 @@
             qrCodeUrl: 'https://img2.pic.in.th/pic/099400240646898.png',
             marqueeText: 'ขอเชิญร่วมทำบุญตามกำลังศรัทธา... สะสมบุญ นำสุขมาให้',
             requireSlip: true,
+            about: {
+                title: "ประวัติและข้อมูล",
+                heading: "ความร่มเย็นแห่งล้านนา",
+                highlightWord: "ล้านนา",
+                content: "วัดไชยามาตย์ ตั้งอยู่ที่ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่ เป็นวัดที่มีความสำคัญและเป็นศูนย์รวมจิตใจของชุมชนมาอย่างยาวนาน โดดเด่นด้วยสถาปัตยกรรมที่งดงามตามแบบฉบับศิลปะล้านนา",
+                imageUrl: "https://images.unsplash.com/photo-1579548231964-b0a701fccf23?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+            },
             passwords: {
                 staff: '104',
                 admin: 'admin104'
@@ -189,7 +200,6 @@
             );
         };
 
-        // Define PowerIcon here to ensure it's available for AdminSettingsPanel
         const PowerIcon = (props) => (
             <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
         );
@@ -272,8 +282,64 @@
         }
 
         // ==========================================
-        // 5. SUB-COMPONENTS (Panels/Forms)
+        // 5. SUB-COMPONENTS (Panels/Forms/Managers)
         // ==========================================
+        
+        function NewsManager({ showNotification }) {
+            const [newsList, setNewsList] = useState([]);
+            const [isEditing, setIsEditing] = useState(false);
+            const [formData, setFormData] = useState({ title: '', content: '', date: '', images: [] });
+            const [editingId, setEditingId] = useState(null);
+            const [isUploading, setIsUploading] = useState(false);
+
+            useEffect(() => {
+                const q = query(collection(db, 'news'));
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    docs.forEach(doc => { if (doc.imageUrl && (!doc.images || doc.images.length === 0)) doc.images = [doc.imageUrl]; });
+                    docs.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    setNewsList(docs);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const handleImageUpload = async (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length > 0) {
+                    setIsUploading(true);
+                    try {
+                        const newImages = await Promise.all(files.map(file => resizeImage(file)));
+                        setFormData(prev => ({ ...prev, images: [...(prev.images || []), ...newImages] }));
+                    } catch (err) { showNotification("อัปโหลดรูปไม่สำเร็จ", "error"); }
+                    setIsUploading(false);
+                }
+            };
+            const removeImage = (indexToRemove) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, index) => index !== indexToRemove) })); };
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!formData.title || !formData.date) return showNotification("กรุณาระบุหัวข้อและวันที่", "error");
+                try {
+                    const dataToSave = { ...formData, imageUrl: formData.images?.[0] || '' };
+                    if (editingId) { await updateDoc(doc(db, 'news', editingId), dataToSave); showNotification("แก้ไขข่าวสารสำเร็จ"); } 
+                    else { await addDoc(collection(db, 'news'), { ...dataToSave, createdAt: new Date().toISOString() }); showNotification("เพิ่มข่าวสารสำเร็จ"); }
+                    setIsEditing(false); setFormData({ title: '', content: '', date: '', images: [] }); setEditingId(null);
+                } catch (error) { showNotification("เกิดข้อผิดพลาด: " + error.message, "error"); }
+            };
+            const handleDelete = async (id) => { if (confirm("ยืนยันการลบข่าวสารนี้?")) { try { await deleteDoc(doc(db, 'news', id)); showNotification("ลบข่าวสารเรียบร้อย"); } catch (error) { showNotification("ลบไม่สำเร็จ", "error"); } } };
+            const startEdit = (news) => { setFormData({ title: news.title, content: news.content, date: news.date, images: news.images || (news.imageUrl ? [news.imageUrl] : []) }); setEditingId(news.id); setIsEditing(true); };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold flex items-center text-gray-800"><Newspaper className="w-6 h-6 mr-2 text-blue-600" /> จัดการข่าวสารและกิจกรรม</h2>{!isEditing && (<button onClick={() => { setIsEditing(true); setFormData({ title: '', content: '', date: new Date().toISOString().split('T')[0], images: [] }); setEditingId(null); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"><Plus className="w-4 h-4 mr-2" /> เพิ่มข่าวใหม่</button>)}</div>
+                    {isEditing ? (
+                        <div className="bg-white p-6 rounded-xl shadow border border-blue-100 animate-fade-in"><h3 className="text-lg font-bold mb-4">{editingId ? 'แก้ไขข่าวสาร' : 'เพิ่มข่าวสารใหม่'}</h3><form onSubmit={handleSubmit} className="space-y-4"><div><label className="block text-sm font-medium mb-1">หัวข้อข่าว *</label><input type="text" className="w-full p-2 border rounded" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required /></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-medium mb-1">วันที่กิจกรรม *</label><input type="date" className="w-full p-2 border rounded" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required /></div><div><label className="block text-sm font-medium mb-1">รูปภาพประกอบ (เลือกได้หลายรูป)</label><div className="flex gap-2 items-center"><label className="cursor-pointer bg-gray-100 px-4 py-2 rounded border hover:bg-gray-200 text-sm flex items-center">{isUploading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <UploadCloud className="w-4 h-4 mr-2" />}{isUploading ? 'กำลังประมวลผล...' : 'เพิ่มรูปภาพ'}<input type="file" className="hidden" accept="image/*" multiple onChange={handleImageUpload} disabled={isUploading} /></label><span className="text-xs text-gray-500">{formData.images?.length || 0} รูป</span></div></div></div>{formData.images && formData.images.length > 0 && (<div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">{formData.images.map((img, idx) => (<div key={idx} className="relative aspect-square bg-gray-100 rounded border overflow-hidden group"><img src={img} className="w-full h-full object-cover" alt={`preview ${idx}`} /><button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>{idx === 0 && <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">ภาพปก</span>}</div>))}</div>)}<div><label className="block text-sm font-medium mb-1">เนื้อหาข่าว / รายละเอียด</label><textarea rows="5" className="w-full p-2 border rounded" value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})}></textarea></div><div className="flex gap-2 pt-2"><button type="button" onClick={() => setIsEditing(false)} className="px-4 py-2 border rounded hover:bg-gray-50">ยกเลิก</button><button type="submit" disabled={isUploading} className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>บันทึก</button></div></form></div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{newsList.map(news => { const coverImage = (news.images && news.images.length > 0) ? news.images[0] : news.imageUrl; return (<div key={news.id} className="bg-white rounded-xl shadow overflow-hidden group border hover:border-blue-300 transition"><div className="h-48 bg-gray-200 relative overflow-hidden">{coverImage ? (<img src={coverImage} alt={news.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />) : (<div className="flex items-center justify-center h-full text-gray-400"><ImageIcon className="w-10 h-10" /></div>)}{news.images && news.images.length > 1 && (<div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-md">+{news.images.length - 1} รูป</div>)}<div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition"><button onClick={() => startEdit(news)} className="bg-white p-2 rounded-full shadow hover:text-blue-600"><Edit className="w-4 h-4" /></button><button onClick={() => handleDelete(news.id)} className="bg-white p-2 rounded-full shadow hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></div><div className="p-4"><div className="text-xs text-gray-500 mb-1">{new Date(news.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</div><h3 className="font-bold text-lg mb-2 line-clamp-2">{news.title}</h3><p className="text-gray-600 text-sm line-clamp-3">{news.content}</p></div></div>); })}{newsList.length === 0 && (<div className="col-span-full text-center py-10 text-gray-500 bg-gray-50 rounded-xl border border-dashed">ยังไม่มีข่าวสาร</div>)}</div>
+                    )}
+                </div>
+            );
+        }
+
         function DonationForm({ userRole, onSave, showNotification, settings }) {
             const [name, setName] = useState('');
             const [method, setMethod] = useState('เงินโอน');
@@ -568,6 +634,7 @@
             const [confirmClear, setConfirmClear] = useState('');
             const [showClearModal, setShowClearModal] = useState(false);
             const [activeSection, setActiveSection] = useState('general');
+            const [isUploading, setIsUploading] = useState(false); 
 
             useEffect(() => { setConfig(settings); }, [settings]);
             const handleSave = () => { onSave(config); };
@@ -577,12 +644,99 @@
             const handleClearDataSubmit = () => { if (confirmClear === (config.passwords?.admin || 'admin104')) { onClearData(); setShowClearModal(false); setConfirmClear(''); } else { alert('รหัสผ่าน Admin ไม่ถูกต้อง'); } };
             const themeColors = [ { id: 'orange', name: 'ส้ม', class: 'bg-orange-500' }, { id: 'yellow', name: 'เหลือง', class: 'bg-yellow-500' }, { id: 'red', name: 'แดง', class: 'bg-red-600' }, { id: 'emerald', name: 'เขียว', class: 'bg-emerald-600' }, { id: 'blue', name: 'น้ำเงิน', class: 'bg-blue-600' }, { id: 'stone', name: 'ขาว/เทา', class: 'bg-stone-500' }, ];
 
+            // Function for About Image Upload
+            const handleAboutImageUpload = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setIsUploading(true);
+                    try {
+                        const resized = await resizeImage(file);
+                        setConfig(prev => ({
+                            ...prev,
+                            about: { ...prev.about, imageUrl: resized }
+                        }));
+                    } catch (err) {
+                        alert("อัปโหลดรูปไม่สำเร็จ");
+                    }
+                    setIsUploading(false);
+                }
+            };
+
             return (
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold flex items-center text-gray-800"><Settings className="w-8 h-8 mr-2 text-orange-600" /> ตั้งค่าระบบ (Super Admin)</h2>
-                    <div className="flex space-x-2 border-b overflow-x-auto"><button onClick={() => setActiveSection('general')} className={`px-4 py-2 font-medium ${activeSection === 'general' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ทั่วไป/ธีม</button><button onClick={() => setActiveSection('donation')} className={`px-4 py-2 font-medium ${activeSection === 'donation' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>การรับบริจาค</button><button onClick={() => setActiveSection('contact')} className={`px-4 py-2 font-medium ${activeSection === 'contact' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ติดต่อ/โซเชียล</button><button onClick={() => setActiveSection('security')} className={`px-4 py-2 font-medium ${activeSection === 'security' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ความปลอดภัย</button></div>
+                    <div className="flex space-x-2 border-b overflow-x-auto">
+                        <button onClick={() => setActiveSection('general')} className={`px-4 py-2 font-medium ${activeSection === 'general' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ทั่วไป/ธีม</button>
+                        <button onClick={() => setActiveSection('about')} className={`px-4 py-2 font-medium ${activeSection === 'about' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>หน้าหลัก (About)</button>
+                        <button onClick={() => setActiveSection('donation')} className={`px-4 py-2 font-medium ${activeSection === 'donation' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>การรับบริจาค</button>
+                        <button onClick={() => setActiveSection('contact')} className={`px-4 py-2 font-medium ${activeSection === 'contact' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ติดต่อ/โซเชียล</button>
+                        <button onClick={() => setActiveSection('security')} className={`px-4 py-2 font-medium ${activeSection === 'security' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ความปลอดภัย</button>
+                    </div>
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                         {activeSection === 'general' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><PowerIcon className="w-5 h-5 mr-2" /> สถานะระบบ</h3><div className="space-y-2"><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'open' ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'open'} onChange={() => setConfig({...config, systemStatus: 'open'})} /><div><div className="font-bold text-green-700">เปิดรับบริจาค</div><div className="text-xs text-gray-500">ใช้งานปกติ</div></div></div></label><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'closed' ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'closed'} onChange={() => setConfig({...config, systemStatus: 'closed'})} /><div><div className="font-bold text-red-700">ปิดรับบริจาคชั่วคราว</div><div className="text-xs text-gray-500">แสดงหน้าเว็บ แต่ซ่อนฟอร์ม</div></div></div></label><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'maintenance' ? 'bg-yellow-50 border-yellow-500 ring-1 ring-yellow-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'maintenance'} onChange={() => setConfig({...config, systemStatus: 'maintenance'})} /><div><div className="font-bold text-yellow-700">ปิดปรับปรุงระบบ</div><div className="text-xs text-gray-500">แสดงหน้าแจ้งปิดปรับปรุง</div></div></div></label></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><Palette className="w-5 h-5 mr-2" /> ธีมสีเว็บไซต์</h3><div className="grid grid-cols-3 gap-2 mb-4">{themeColors.map(color => (<button key={color.id} onClick={() => setConfig({...config, themeColor: color.id})} className={`p-2 rounded border flex flex-col items-center gap-1 transition-all ${config.themeColor === color.id ? 'ring-2 ring-offset-2 ring-gray-400 border-gray-400 bg-gray-50' : 'hover:bg-gray-50'}`}><div className={`w-8 h-8 rounded-full ${color.class}`}></div><span className="text-xs">{color.name}</span></button>))}</div><h3 className="text-lg font-bold mb-4 flex items-center"><Type className="w-5 h-5 mr-2" /> ฟอนต์ (แบบตัวอักษร)</h3><select className="w-full p-2 border rounded mb-4" value={config.fontFamily || 'Sarabun'} onChange={e => setConfig({...config, fontFamily: e.target.value})}>{FONT_OPTIONS.map(font => (<option key={font.id} value={font.id}>{font.name}</option>))}</select><div><label className="block text-sm font-medium mb-1">ข้อความวิ่ง (Marquee Text)</label><input type="text" className="w-full p-2 border rounded" value={config.marqueeText || ''} onChange={e => setConfig({...config, marqueeText: e.target.value})} placeholder="เว้นว่างหากไม่ต้องการแสดง" /></div></div></div><div className="pt-4 border-t"><h3 className="text-lg font-bold mb-4 flex items-center"><ImageIcon className="w-5 h-5 mr-2" /> ข้อมูลพื้นฐาน</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium">ชื่อวัด / องค์กร</label><input type="text" className="w-full p-2 border rounded" value={config.templeName} onChange={e => setConfig({...config, templeName: e.target.value})} /></div><div><label className="text-sm font-medium">ลิงค์รูปหน้าปก (Banner URL)</label><input type="text" className="w-full p-2 border rounded" value={config.bannerUrl} onChange={e => setConfig({...config, bannerUrl: e.target.value})} /></div></div></div></div>)}
+                        
+                        {/* New ABOUT Section */}
+                        {activeSection === 'about' && (
+                            <div className="space-y-6 animate-fade-in">
+                                <h3 className="text-lg font-bold mb-4 flex items-center"><Layout className="w-5 h-5 mr-2" /> แก้ไขหน้าประวัติและข้อมูล</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">หัวข้อเล็ก (เช่น ประวัติและข้อมูล)</label>
+                                            <input type="text" className="w-full p-2 border rounded" value={config.about?.title || ''} onChange={e => setConfig({...config, about: { ...config.about, title: e.target.value }})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">หัวข้อใหญ่ (เช่น ความร่มเย็นแห่งล้านนา)</label>
+                                            <input type="text" className="w-full p-2 border rounded" value={config.about?.heading || ''} onChange={e => setConfig({...config, about: { ...config.about, heading: e.target.value }})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">คำที่ต้องการเน้นสีส้ม (ต้องตรงกับในหัวข้อใหญ่)</label>
+                                            <input type="text" className="w-full p-2 border rounded text-orange-600 font-bold" value={config.about?.highlightWord || ''} onChange={e => setConfig({...config, about: { ...config.about, highlightWord: e.target.value }})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">เนื้อหา / รายละเอียด</label>
+                                            <textarea rows="6" className="w-full p-2 border rounded" value={config.about?.content || ''} onChange={e => setConfig({...config, about: { ...config.about, content: e.target.value }})}></textarea>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">รูปภาพประกอบ</label>
+                                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
+                                                <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onChange={handleAboutImageUpload} disabled={isUploading} />
+                                                {isUploading ? (
+                                                    <div className="flex flex-col items-center text-gray-500">
+                                                        <Loader className="w-8 h-8 animate-spin mb-2" />
+                                                        <span>กำลังอัปโหลด...</span>
+                                                    </div>
+                                                ) : config.about?.imageUrl ? (
+                                                    <div className="relative">
+                                                        <img src={config.about.imageUrl} alt="Preview" className="max-h-48 mx-auto rounded shadow" />
+                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูป</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center text-gray-500">
+                                                        <UploadCloud className="w-8 h-8 mb-2" />
+                                                        <span>คลิกเพื่ออัปโหลดรูปภาพ</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="bg-gray-50 p-4 rounded text-sm text-gray-600">
+                                            <strong>ตัวอย่างการแสดงผล:</strong>
+                                            <div className="mt-2 p-3 bg-white border rounded">
+                                                <div className="text-xs text-orange-600 mb-1">{config.about?.title}</div>
+                                                <div className="font-bold text-lg">
+                                                    {config.about?.heading?.replace(config.about?.highlightWord, '')}
+                                                    <span className="text-orange-600">{config.about?.highlightWord}</span>
+                                                </div>
+                                                <div className="text-xs text-gray-500 mt-1 line-clamp-3">{config.about?.content}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {activeSection === 'donation' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><User className="w-5 h-5 mr-2" /> บัญชีรับเงิน</h3><div className="space-y-3 p-4 bg-gray-50 rounded-lg border"><div><label className="text-xs text-gray-500">ธนาคาร</label><input type="text" className="w-full p-2 border rounded" value={config.bankInfo?.bankName} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, bankName: e.target.value}})} /></div><div><label className="text-xs text-gray-500">ชื่อบัญชี</label><input type="text" className="w-full p-2 border rounded" value={config.bankInfo?.accountName} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, accountName: e.target.value}})} /></div><div><label className="text-xs text-gray-500">เลขบัญชี</label><input type="text" className="w-full p-2 border rounded font-mono text-lg" value={config.bankInfo?.accountNumber} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, accountNumber: e.target.value}})} /></div><div><label className="text-xs text-gray-500">ลิงค์รูป QR Code</label><input type="text" className="w-full p-2 border rounded" value={config.qrCodeUrl} onChange={e => setConfig({...config, qrCodeUrl: e.target.value})} /></div></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><Settings className="w-5 h-5 mr-2" /> ตั้งค่าเงื่อนไข</h3><div className="space-y-4"><div className="flex items-center justify-between p-3 border rounded-lg"><span>จำเป็นต้องแนบสลิปโอนเงิน</span><label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={config.requireSlip !== false} onChange={e => setConfig({...config, requireSlip: e.target.checked})} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div></label></div><div><label className="block text-sm font-medium mb-1">ข้อความขอบคุณ (อนุโมทนา)</label><textarea rows="3" className="w-full p-2 border rounded" value={config.messages?.thankYou || ''} onChange={e => setConfig({...config, messages: {...config.messages, thankYou: e.target.value}})}></textarea></div></div></div></div><div className="pt-4 border-t"><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold flex items-center"><ClipboardList className="w-5 h-5 mr-2" /> รายการรับบริจาค</h3><button onClick={handleAddDonationType} className="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 flex items-center"><Plus className="w-4 h-4 mr-1"/> เพิ่มรายการ</button></div><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-gray-50 text-gray-500"><tr><th className="p-2">ชื่อรายการ</th><th className="p-2 text-center">มีจำนวน?</th><th className="p-2 text-right">ราคา/หน่วย</th><th className="p-2 text-center">หน่วยนับ</th><th className="p-2 text-center">ลบ</th></tr></thead><tbody className="divide-y">{(config.donationTypes || []).map((type, idx) => (<tr key={idx}><td className="p-2"><input type="text" className="w-full p-1 border rounded" value={type.name} onChange={e => handleUpdateDonationType(idx, 'name', e.target.value)} disabled={type.isSpecial} /></td><td className="p-2 text-center"><input type="checkbox" checked={type.hasQuantity} onChange={e => handleUpdateDonationType(idx, 'hasQuantity', e.target.checked)} disabled={type.isSpecial} /></td><td className="p-2"><input type="number" className="w-full p-1 border rounded text-right" value={type.price || 0} onChange={e => handleUpdateDonationType(idx, 'price', parseInt(e.target.value))} disabled={!type.hasQuantity && !type.isSpecial} /></td><td className="p-2"><input type="text" className="w-full p-1 border rounded text-center" value={type.unit || ''} onChange={e => handleUpdateDonationType(idx, 'unit', e.target.value)} disabled={!type.hasQuantity} placeholder="-" /></td><td className="p-2 text-center">{!type.isSpecial && (<button onClick={() => handleRemoveDonationType(idx)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>)}</td></tr>))}</tbody></table></div></div></div>)}
                         {activeSection === 'contact' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><MapPin className="w-5 h-5 mr-2" /> ข้อมูลติดต่อ</h3><div className="space-y-3"><div><label className="text-sm font-medium">เบอร์โทรศัพท์</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.phone} onChange={e => setConfig({...config, contact: {...config.contact, phone: e.target.value}})} /></div><div><label className="text-sm font-medium">ที่อยู่</label><textarea rows="3" className="w-full p-2 border rounded" value={config.contact?.address} onChange={e => setConfig({...config, contact: {...config.contact, address: e.target.value}})}></textarea></div></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><MessageCircle className="w-5 h-5 mr-2" /> โซเชียลมีเดีย</h3><div className="space-y-3"><div><label className="text-sm font-medium">Facebook Link</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.facebook || ''} onChange={e => setConfig({...config, contact: {...config.contact, facebook: e.target.value}})} placeholder="https://facebook.com/..." /></div><div><label className="text-sm font-medium">Line Link / ID</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.line || ''} onChange={e => setConfig({...config, contact: {...config.contact, line: e.target.value}})} placeholder="https://line.me/..." /></div></div></div></div></div>)}
                         {activeSection === 'security' && (<div className="space-y-6 animate-fade-in"><div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4 text-sm text-yellow-800"><AlertTriangle className="w-4 h-4 inline mr-1" /> คำเตือน: กรุณาจดจำรหัสผ่านใหม่ให้แม่นยำ หากลืมจะไม่สามารถกู้คืนได้ง่าย</div><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 text-blue-700 flex items-center"><User className="w-5 h-5 mr-2" /> รหัสเจ้าหน้าที่ (Staff)</h3><p className="text-sm text-gray-500 mb-2">สำหรับเจ้าหน้าที่จุดรับบริจาค (บันทึกข้อมูลได้ แต่ลบไม่ได้)</p><input type="text" className="w-full p-2 border rounded bg-gray-50" value={config.passwords?.staff || '104'} onChange={e => setConfig({...config, passwords: {...config.passwords, staff: e.target.value}})} /></div><div><h3 className="text-lg font-bold mb-4 text-red-700 flex items-center"><ShieldCheck className="w-5 h-5 mr-2" /> รหัสผู้ดูแลระบบ (Admin)</h3><p className="text-sm text-gray-500 mb-2">สิทธิ์สูงสุด (ตั้งค่าระบบ, ลบข้อมูล, อนุมัติรายการ)</p><input type="text" className="w-full p-2 border rounded bg-gray-50" value={config.passwords?.admin || 'admin104'} onChange={e => setConfig({...config, passwords: {...config.passwords, admin: e.target.value}})} /></div></div></div>)}
@@ -695,6 +849,11 @@
                                         <Megaphone className="w-5 h-5 mr-2 shrink-0" /> โฆษก/ประกาศ
                                     </button>
                                 )}
+                                {isAuthenticated && (
+                                    <button onClick={() => setActiveTab('news')} className={`flex items-center px-4 py-3 border-b-2 font-medium whitespace-nowrap ${activeTab === 'news' ? `border-${theme}-500 text-${theme}-600` : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                                        <Newspaper className="w-5 h-5 mr-2 shrink-0" /> ข่าวประชาสัมพันธ์
+                                    </button>
+                                )}
                                 {isAuthenticated && userRole === 'admin' && (
                                     <>
                                         <button onClick={() => setActiveTab('approval')} className={`flex items-center px-4 py-3 border-b-2 font-medium whitespace-nowrap ${activeTab === 'approval' ? `border-${theme}-500 text-${theme}-600` : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
@@ -732,6 +891,9 @@
                         {activeTab === 'announcer' && isAuthenticated && (
                             <AnnouncerPanel donations={donations} onUpdateStatus={toggleAnnounced} settings={settings} />
                         )}
+                        {activeTab === 'news' && isAuthenticated && (
+                            <NewsManager showNotification={showNotification} />
+                        )}
                         {activeTab === 'approval' && userRole === 'admin' && isAuthenticated && (
                             <ApprovalPanel 
                                 donations={donations} 
@@ -760,8 +922,31 @@
         function OfficialWebsite({ onNavigate, donations, settings }) {
             const [isScrolled, setIsScrolled] = useState(false);
             const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+            const [newsList, setNewsList] = useState([]);
+            const [selectedNews, setSelectedNews] = useState(null); 
             const totalAmount = useMemo(() => donations.filter(d => d.status === 'approved').reduce((sum, d) => sum + (Number(d.amount) || 0), 0), [donations]);
             const theme = settings.themeColor || 'orange';
+
+            const aboutTitle = settings.about?.title || "ประวัติและข้อมูล";
+            const aboutHeading = settings.about?.heading || "ความร่มเย็นแห่งล้านนา";
+            const aboutHighlight = settings.about?.highlightWord || "ล้านนา";
+            const aboutContent = settings.about?.content || "วัดไชยามาตย์...";
+            const aboutImage = settings.about?.imageUrl || "https://images.unsplash.com/photo-1579548231964-b0a701fccf23?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+
+            const renderHeading = () => {
+                if (!aboutHighlight) return aboutHeading;
+                const parts = aboutHeading.split(aboutHighlight);
+                return (
+                    <>
+                        {parts.map((part, i) => (
+                            <React.Fragment key={i}>
+                                {part}
+                                {i < parts.length - 1 && <span className={`text-${theme}-600`}>{aboutHighlight}</span>}
+                            </React.Fragment>
+                        ))}
+                    </>
+                );
+            };
 
             useEffect(() => {
                 const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -769,9 +954,25 @@
                 return () => window.removeEventListener('scroll', handleScroll);
             }, []);
 
+            useEffect(() => {
+                const q = query(collection(db, 'news'));
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    docs.forEach(doc => {
+                        if (doc.imageUrl && (!doc.images || doc.images.length === 0)) {
+                            doc.images = [doc.imageUrl];
+                        }
+                    });
+                    docs.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    setNewsList(docs);
+                });
+                return () => unsubscribe();
+            }, []);
+
             const navLinks = [
                 { name: 'หน้าหลัก', href: '#home' }, 
                 { name: 'ประวัติวัด', href: '#about' }, 
+                { name: 'ข่าวสาร/กิจกรรม', href: '#news' },
                 { name: 'ติดต่อเรา', href: '#contact' }
             ];
 
@@ -876,16 +1077,113 @@
                             <div className="flex flex-col md:flex-row items-center gap-12">
                                 <div className="md:w-1/2 relative">
                                     <div className={`absolute -inset-4 bg-${theme}-100 rounded-3xl transform rotate-3 -z-10`}></div>
-                                    <img src="https://images.unsplash.com/photo-1579548231964-b0a701fccf23?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="ประวัติวัด" className="w-full h-auto rounded-2xl shadow-lg object-cover aspect-[4/3]" />
+                                    <img src={aboutImage} alt="ประวัติวัด" className="w-full h-auto rounded-2xl shadow-lg object-cover aspect-[4/3]" />
                                 </div>
                                 <div className="md:w-1/2">
-                                    <div className={`flex items-center gap-2 text-${theme}-600 font-semibold mb-2`}><BookOpen className="w-5 h-5" /> ประวัติและข้อมูล</div>
-                                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">ความร่มเย็นแห่ง<span className={`text-${theme}-600`}>ล้านนา</span></h2>
-                                    <p className="text-gray-600 text-lg leading-relaxed mb-6">{settings.templeName} ตั้งอยู่ที่ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่ เป็นวัดที่มีความสำคัญและเป็นศูนย์รวมจิตใจของชุมชนมาอย่างยาวนาน โดดเด่นด้วยสถาปัตยกรรมที่งดงามตามแบบฉบับศิลปะล้านนา</p>
+                                    <div className={`flex items-center gap-2 text-${theme}-600 font-semibold mb-2`}><BookOpen className="w-5 h-5" /> {aboutTitle}</div>
+                                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">{renderHeading()}</h2>
+                                    <p className="text-gray-600 text-lg leading-relaxed mb-6 whitespace-pre-line">{aboutContent}</p>
                                 </div>
                             </div>
                         </div>
                     </section>
+
+                    {newsList.length > 0 && (
+                        <section id="news" className="py-20 bg-gray-50">
+                            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                <div className="text-center mb-12">
+                                    <h2 className={`text-3xl md:text-4xl font-bold text-gray-900`}>ข่าวประชาสัมพันธ์<span className={`text-${theme}-600`}>และกิจกรรม</span></h2>
+                                    <div className={`h-1 w-20 bg-${theme}-500 mx-auto mt-4 rounded-full`}></div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    {newsList.map(news => {
+                                        const coverImage = (news.images && news.images.length > 0) ? news.images[0] : news.imageUrl;
+                                        return (
+                                            <div key={news.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group cursor-pointer" onClick={() => setSelectedNews(news)}>
+                                                <div className="h-56 bg-gray-200 overflow-hidden relative">
+                                                    {coverImage ? (
+                                                        <img src={coverImage} alt={news.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                            <ImageIcon className="w-12 h-12" />
+                                                        </div>
+                                                    )}
+                                                    {news.images && news.images.length > 1 && (
+                                                        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-md">
+                                                            +{news.images.length - 1} รูป
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="p-6">
+                                                    <div className={`text-sm font-semibold text-${theme}-600 mb-2 flex items-center`}>
+                                                        <Calendar className="w-4 h-4 mr-2" />
+                                                        {new Date(news.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                    </div>
+                                                    <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-orange-600 transition-colors">{news.title}</h3>
+                                                    <p className="text-gray-600 text-sm line-clamp-3 mb-4">{news.content}</p>
+                                                    <button onClick={(e) => { e.stopPropagation(); setSelectedNews(news); }} className={`text-${theme}-600 font-semibold hover:underline text-sm`}>อ่านเพิ่มเติม →</button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </section>
+                    )}
+
+                    {selectedNews && (
+                        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedNews(null)}>
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-scale-up flex flex-col" onClick={e => e.stopPropagation()}>
+                                <div className="relative">
+                                    {selectedNews.images && selectedNews.images.length > 0 ? (
+                                        <img src={selectedNews.images[0]} alt={selectedNews.title} className="w-full h-64 md:h-96 object-cover" />
+                                    ) : (
+                                        <div className={`w-full h-32 bg-${theme}-100 flex items-center justify-center`}>
+                                            <ImageIcon className={`w-12 h-12 text-${theme}-300`} />
+                                        </div>
+                                    )}
+                                    <button 
+                                        onClick={() => setSelectedNews(null)} 
+                                        className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors shadow-lg backdrop-blur-md"
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                </div>
+                                <div className="p-6 md:p-8">
+                                    <div className={`text-sm font-bold text-${theme}-600 mb-3 flex items-center bg-${theme}-50 w-fit px-3 py-1 rounded-full`}>
+                                        <Calendar className="w-4 h-4 mr-2" />
+                                        {new Date(selectedNews.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                    </div>
+                                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 leading-tight">{selectedNews.title}</h2>
+                                    <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-lg mb-8">
+                                        {selectedNews.content}
+                                    </div>
+
+                                    {selectedNews.images && selectedNews.images.length > 1 && (
+                                        <div className="border-t pt-6">
+                                            <h4 className="text-lg font-bold mb-4 flex items-center text-gray-700"><ImageIcon className="w-5 h-5 mr-2" /> รูปภาพเพิ่มเติม</h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                {selectedNews.images.slice(1).map((img, idx) => (
+                                                    <a href={img} target="_blank" rel="noopener noreferrer" key={idx} className="block aspect-square rounded-lg overflow-hidden border hover:opacity-90 transition">
+                                                        <img src={img} alt={`gallery-${idx}`} className="w-full h-full object-cover" />
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="mt-8 pt-6 border-t flex justify-end">
+                                        <button 
+                                            onClick={() => setSelectedNews(null)}
+                                            className={`bg-${theme}-600 hover:bg-${theme}-700 text-white px-6 py-2 rounded-lg font-bold shadow-md transition-transform hover:scale-105`}
+                                        >
+                                            ปิดหน้าต่าง
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <footer id="contact" className="bg-gray-900 text-white pt-16 pb-8">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
