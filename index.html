@@ -205,7 +205,7 @@
         );
 
         // ==========================================
-        // 4. MODALS (Defined before usage)
+        // 4. MODALS (Defined first)
         // ==========================================
         function LoginModal({ role, onClose, onLoginSuccess, settings }) {
             const [password, setPassword] = useState('');
@@ -266,7 +266,7 @@
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">รายการที่บริจาค</label><input type="text" className="w-full p-2 border border-gray-300 rounded outline-none" value={formData.purpose} onChange={e => setFormData({...formData, purpose: e.target.value})} /></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">จำนวนเงิน (บาท)</label><input type="number" className="w-full p-2 border border-gray-300 rounded outline-none font-bold text-orange-600" value={formData.amount} onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})} /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">ช่องทาง</label><select className="w-full p-2 border border-gray-300 rounded outline-none bg-white" value={formData.method} onChange={e => setFormData({...formData, method: e.target.value})}><option value="เงินสด">เงินสด</option><option value="เงินโอน">เงินโอน</option><option value="อื่นๆ">อื่นๆ</option></select></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">ช่องทาง</label><select className="w-full p-2 border border-gray-300 rounded outline-none bg-white" value={formData.method} onChange={e => setFormData({...formData, method: e.target.value})}><option value="เงินโอน">เงินโอน</option><option value="เงินสด">เงินสด</option><option value="อื่นๆ">อื่นๆ</option></select></div>
                             </div>
                             {formData.slipImage && (<div className="mt-2"><label className="block text-sm font-medium text-gray-700 mb-1">สลิปที่แนบมา</label><img src={formData.slipImage} alt="Slip" className="max-h-40 border rounded" /></div>)}
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label><select className="w-full p-2 border border-gray-300 rounded outline-none bg-white" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option value="pending">รอตรวจสอบ</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option></select></div>
@@ -342,7 +342,7 @@
 
         function DonationForm({ userRole, onSave, showNotification, settings }) {
             const [name, setName] = useState('');
-            const [method, setMethod] = useState('เงินโอน');
+            const [method, setMethod] = useState((userRole === 'staff' || userRole === 'admin') ? 'เงินสด' : 'เงินโอน');
             const [generalNote, setGeneralNote] = useState('');
             const [slipImage, setSlipImage] = useState(null); 
             const [isUploading, setIsUploading] = useState(false);
@@ -364,6 +364,14 @@
                 }
                 setSelectedItems(prev => ({...initial, ...prev}));
             }, [donationTypes]);
+
+            useEffect(() => {
+                if (userRole === 'staff' || userRole === 'admin') {
+                    setMethod('เงินสด');
+                } else {
+                    setMethod('เงินโอน');
+                }
+            }, [userRole]);
 
             const totalAmount = useMemo(() => {
                 let sum = 0;
@@ -420,7 +428,7 @@
             };
 
             const resetForm = () => {
-                setName(''); setMethod('เงินโอน'); setGeneralNote(''); setSlipImage(null);
+                setName(''); setMethod((userRole === 'staff' || userRole === 'admin') ? 'เงินสด' : 'เงินโอน'); setGeneralNote(''); setSlipImage(null);
                 const resetItems = {};
                 Object.keys(selectedItems).forEach(key => {
                     resetItems[key] = { ...selectedItems[key], checked: false, amount: '', quantity: 1, date: '', note: '' };
@@ -1042,6 +1050,7 @@
                         )}
                     </nav>
 
+                    {/* 1. Header/Hero Section */}
                     <section id="home" className="relative h-[85vh] flex items-center justify-center bg-gray-900">
                         <div className="absolute inset-0 w-full h-full">
                             <img src={settings.bannerUrl} alt="ภาพวัด" className="w-full h-full object-cover opacity-60" />
@@ -1072,6 +1081,7 @@
                         </div>
                     </section>
 
+                    {/* 2. History/About Section (EDITABLE) */}
                     <section id="about" className="py-20 bg-white">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex flex-col md:flex-row items-center gap-12">
@@ -1088,6 +1098,7 @@
                         </div>
                     </section>
 
+                    {/* 3. News Section (New Order) */}
                     {newsList.length > 0 && (
                         <section id="news" className="py-20 bg-gray-50">
                             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1131,10 +1142,12 @@
                         </section>
                     )}
 
+                    {/* News Modal Overlay */}
                     {selectedNews && (
                         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedNews(null)}>
                             <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-scale-up flex flex-col" onClick={e => e.stopPropagation()}>
                                 <div className="relative">
+                                    {/* Main Image */}
                                     {selectedNews.images && selectedNews.images.length > 0 ? (
                                         <img src={selectedNews.images[0]} alt={selectedNews.title} className="w-full h-64 md:h-96 object-cover" />
                                     ) : (
@@ -1159,6 +1172,7 @@
                                         {selectedNews.content}
                                     </div>
 
+                                    {/* Gallery Grid */}
                                     {selectedNews.images && selectedNews.images.length > 1 && (
                                         <div className="border-t pt-6">
                                             <h4 className="text-lg font-bold mb-4 flex items-center text-gray-700"><ImageIcon className="w-5 h-5 mr-2" /> รูปภาพเพิ่มเติม</h4>
@@ -1185,6 +1199,7 @@
                         </div>
                     )}
 
+                    {/* 4. Contact/Footer Section */}
                     <footer id="contact" className="bg-gray-900 text-white pt-16 pb-8">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 border-b border-gray-800 pb-12">
