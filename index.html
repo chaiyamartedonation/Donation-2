@@ -43,85 +43,111 @@
         .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
 
         /* ========================================= */
-        /* PRINT STYLES (UPDATED FIX)                */
+        /* CSS สำหรับการพิมพ์ (แบบทางการ OFFICIAL)     */
         /* ========================================= */
         @media print {
-            /* Hide everything by default */
-            body * {
-                visibility: hidden;
-            }
+            /* ซ่อนทุกอย่างก่อน */
+            body * { visibility: hidden; }
+            
+            /* แสดงเฉพาะส่วน Container ของรายงาน */
+            .print-container, .print-container * { visibility: visible; }
 
-            /* Show only the print container and its children */
-            .print-container, .print-container * {
-                visibility: visible;
-            }
-
-            /* Reset Body for Print */
+            /* ตั้งค่าหน้ากระดาษ */
             body {
                 background: white !important;
-                color: black !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                height: auto !important;
                 overflow: visible !important;
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important;
             }
 
-            /* Position the print container absolutely to top-left */
+            /* บังคับใช้ฟอนต์สารบรรณสำหรับการพิมพ์ */
+            body, .print-container * {
+                font-family: 'Sarabun', sans-serif !important;
+                color: black !important;
+            }
+
+            /* จัดตำแหน่ง Container ให้พอดีกระดาษ */
             .print-container {
                 position: absolute;
                 left: 0;
                 top: 0;
                 width: 100% !important;
-                margin: 0 !important;
-                padding: 20px !important;
+                padding: 40px 50px !important; /* ระยะขอบกระดาษมาตรฐาน */
                 background: white !important;
                 border: none !important;
                 box-shadow: none !important;
+                display: block !important;
             }
 
-            /* Force hide items with no-print class even inside print-container */
-            .no-print {
-                display: none !important;
-            }
+            /* ซ่อนปุ่มและส่วนที่ไม่ต้องการพิมพ์ */
+            .no-print { display: none !important; }
+            .screen-only { display: none !important; }
 
-            /* Fix Table Issues */
-            table {
-                width: 100% !important;
-                border-collapse: collapse !important;
+            /* แสดงส่วนที่ซ่อนไว้บนหน้าจอปกติ */
+            .print-header-official { display: block !important; }
+            .print-summary-official { display: block !important; }
+            .signature-section { display: flex !important; }
+
+            /* ตารางแบบทางการ */
+            table { 
+                width: 100% !important; 
+                border-collapse: collapse !important; 
+                margin-top: 20px;
+                margin-bottom: 20px;
             }
-            th, td {
-                border: 1px solid #ddd !important;
+            th {
+                border: 1px solid black !important;
                 padding: 8px !important;
-                font-size: 12px !important;
+                font-size: 14px !important;
+                font-weight: bold !important;
+                background-color: #f0f0f0 !important;
+                text-align: center !important;
             }
-            thead {
-                display: table-header-group; 
+            td {
+                border: 1px solid black !important;
+                padding: 8px !important;
+                font-size: 14px !important;
+                vertical-align: top;
             }
-            tr {
+            
+            /* Badge สถานะตอนพิมพ์ให้เป็นข้อความธรรมดา */
+            .status-badge {
+                border: none !important;
+                background: none !important;
+                padding: 0 !important;
+                font-weight: normal !important;
+                color: black !important;
+            }
+
+            /* ส่วนลงนามท้ายกระดาษ */
+            .signature-section {
+                justify-content: space-between;
+                margin-top: 60px;
                 page-break-inside: avoid;
             }
-
-            /* Show Print Header */
-            .print-header {
-                display: block !important;
-                margin-bottom: 20px;
+            .signature-box {
                 text-align: center;
-                border-bottom: 2px solid #333;
-                padding-bottom: 10px;
+                width: 40%;
+            }
+            .signature-line {
+                border-bottom: 1px dotted black;
+                width: 80%;
+                margin: 30px auto 10px auto;
+                height: 1px;
             }
         }
 
-        /* Utility for Print Header (Hidden on Screen) */
-        .print-header {
-            display: none;
-        }
+        /* ซ่อนส่วนที่ใช้เฉพาะตอนพิมพ์ในหน้าจอปกติ */
+        .print-header-official { display: none; }
+        .print-summary-official { display: none; }
+        .signature-section { display: none; }
         
         /* Hide Scrollbar */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Line Clamp */
-        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     </style>
 </head>
 <body>
@@ -136,7 +162,8 @@
             Menu, ChevronRight, Download, Printer, Lock, LogOut, FileText, Megaphone, 
             Mic, RotateCcw, CalendarDays, Pencil, Save, Key, QrCode, ShoppingBag, 
             UploadCloud, Image as ImageIcon, Loader, Info, Settings, Trash2, AlertTriangle, 
-            Plus, LogIn, Facebook, MessageCircle, Palette, Bell, FileCheck, Type, Newspaper, Edit, Layout
+            Plus, LogIn, Facebook, MessageCircle, Palette, Bell, FileCheck, Type, Newspaper, Edit, Layout,
+            Search, SlidersHorizontal
         } from 'lucide-react';
         import { initializeApp } from "firebase/app";
         import { 
@@ -160,7 +187,7 @@
         } from "firebase/firestore";
 
         // ==========================================
-        // 1. FIREBASE INIT & CONFIG
+        // 1. FIREBASE CONFIG
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyAHuvRRTNpYuh8MFiIwN4Lm106l09BED14",
@@ -177,7 +204,7 @@
         const db = getFirestore(app);
 
         // ==========================================
-        // 2. CONSTANTS & DEFAULTS
+        // 2. CONSTANTS
         // ==========================================
         const DEFAULT_SETTINGS = {
             systemStatus: 'open', 
@@ -192,27 +219,13 @@
                 title: "ประวัติและข้อมูล",
                 heading: "ความร่มเย็นแห่งล้านนา",
                 highlightWord: "ล้านนา",
-                content: "วัดไชยามาตย์ ตั้งอยู่ที่ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่ เป็นวัดที่มีความสำคัญและเป็นศูนย์รวมจิตใจของชุมชนมาอย่างยาวนาน โดดเด่นด้วยสถาปัตยกรรมที่งดงามตามแบบฉบับศิลปะล้านนา",
+                content: "วัดไชยามาตย์ ตั้งอยู่ที่ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่...",
                 imageUrl: "https://images.unsplash.com/photo-1579548231964-b0a701fccf23?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
             },
-            passwords: {
-                staff: '104',
-                admin: 'admin104'
-            },
-            bankInfo: {
-                bankName: 'ธ.กรุงไทย',
-                accountName: 'วัดไชยามาตย์',
-                accountNumber: 'xxx-x-xxxxx-x'
-            },
-            contact: {
-                phone: '082-2801992',
-                address: 'หมู่ที่ 1 ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่ 54130',
-                facebook: '',
-                line: ''
-            },
-            messages: {
-                thankYou: 'ขออนุโมทนาบุญ ขอให้ท่านและครอบครัวมีความสุขความเจริญ ปราศจากโรคภัยไข้เจ็บ'
-            },
+            passwords: { staff: '104', admin: 'admin104' },
+            bankInfo: { bankName: 'ธ.กรุงไทย', accountName: 'วัดไชยามาตย์', accountNumber: 'xxx-x-xxxxx-x' },
+            contact: { phone: '082-2801992', address: 'หมู่ที่ 1 ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่ 54130', facebook: '', line: '' },
+            messages: { thankYou: 'ขออนุโมทนาบุญ...' },
             donationTypes: [
                 { id: 'general', name: 'บริจาคทั่วไป / ค่าน้ำค่าไฟ', hasQuantity: false, price: 0, active: true },
                 { id: 'thai_taan', name: 'ไทยทาน', hasQuantity: true, price: 300, unit: 'ชุด', active: true },
@@ -230,7 +243,7 @@
         ];
 
         // ==========================================
-        // 3. UTILITIES & ICONS
+        // 3. UTILITIES
         // ==========================================
         const resizeImage = (file) => {
             return new Promise((resolve, reject) => {
@@ -271,7 +284,7 @@
         );
 
         // ==========================================
-        // 4. MODALS (Defined first)
+        // 4. MODALS & SUB-COMPONENTS
         // ==========================================
         function LoginModal({ role, onClose, onLoginSuccess, settings }) {
             const [password, setPassword] = useState('');
@@ -348,9 +361,8 @@
         }
 
         // ==========================================
-        // 5. SUB-COMPONENTS (Panels/Forms/Managers)
+        // 5. PANELS & MANAGERS
         // ==========================================
-        
         function NewsManager({ showNotification }) {
             const [newsList, setNewsList] = useState([]);
             const [isEditing, setIsEditing] = useState(false);
@@ -573,10 +585,46 @@
             );
         }
 
-        function Dashboard({ donations, userRole, onUpdateDonation, showNotification }) {
+        function Dashboard({ donations, userRole, onUpdateDonation, showNotification, settings }) {
             const [editingDonation, setEditingDonation] = useState(null);
             const [viewSlip, setViewSlip] = useState(null);
-            const filteredData = donations; 
+            
+            // Filtering States
+            const [filterDate, setFilterDate] = useState('');
+            const [filterMethod, setFilterMethod] = useState('all');
+            const [filterType, setFilterType] = useState('all');
+
+            // Apply Filters
+            const filteredData = donations.filter(d => {
+                let isValid = true;
+                
+                // Date Filter
+                if (filterDate) {
+                    const dDate = new Date(d.dateTime).toLocaleDateString('en-CA'); // YYYY-MM-DD
+                    if (dDate !== filterDate) isValid = false;
+                }
+
+                // Method Filter
+                if (filterMethod !== 'all') {
+                    if (d.method !== filterMethod) isValid = false;
+                }
+
+                // Type Filter
+                if (filterType !== 'all') {
+                    if (filterType === 'roong_taan') {
+                        if (!d.roongTaanDate && !d.purpose.includes('โรงทาน')) isValid = false;
+                    } else if (filterType === 'thai_taan') {
+                        if (!d.purpose.includes('ไทยทาน')) isValid = false;
+                    } else if (filterType === 'hua_wat') {
+                        if (!d.purpose.includes('หัววัด')) isValid = false;
+                    } else if (filterType === 'general') {
+                        if (d.roongTaanDate || d.purpose.includes('ไทยทาน') || d.purpose.includes('หัววัด')) isValid = false;
+                    }
+                }
+
+                return isValid;
+            });
+
             const totalAmount = filteredData.reduce((sum, d) => d.status === 'approved' ? sum + (Number(d.amount) || 0) : sum, 0);
             
             const exportCSV = () => {
@@ -585,48 +633,182 @@
                 const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
                 const link = document.createElement("a");
                 link.setAttribute("href", encodeURI(csvContent));
-                link.setAttribute("download", `donation_report_${new Date().toISOString().slice(0,10)}.csv`);
+                link.setAttribute("download", `donation_report_${filterDate || 'all'}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             };
 
+            const resetFilters = () => {
+                setFilterDate('');
+                setFilterMethod('all');
+                setFilterType('all');
+            };
+
+            // Format date for display in header
+            const printDateDisplay = filterDate 
+                ? new Date(filterDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
+                : "ข้อมูลทั้งหมด";
+
             return (
                 <div className="space-y-6">
                     {editingDonation && (<EditModal donation={editingDonation} userRole={userRole} onClose={() => setEditingDonation(null)} onSave={onUpdateDonation} showNotification={showNotification} />)}
                     {viewSlip && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setViewSlip(null)}><div className="relative max-w-3xl max-h-full"><img src={viewSlip} alt="Full Slip" className="max-w-full max-h-[90vh] rounded shadow-lg" /><button className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow" onClick={() => setViewSlip(null)}><X className="w-6 h-6" /></button></div></div>)}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 no-print"><h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center"><ClipboardList className="w-6 h-6 mr-2 text-orange-600" /> สรุปยอดและรายงาน</h2><div className="flex gap-2 w-full sm:w-auto"><button onClick={() => window.print()} className="flex-1 sm:flex-none flex items-center justify-center bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm transition-colors"><Printer className="w-4 h-4 mr-2" /> พิมพ์ / PDF</button><button onClick={exportCSV} className="flex-1 sm:flex-none flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"><FileText className="w-4 h-4 mr-2" /> CSV / Excel</button></div></div>
                     
-                    {/* WRAPPED IN PRINT-CONTAINER TO INCLUDE CARDS + TABLE */}
+                    {/* Header & Tools */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 no-print">
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center"><ClipboardList className="w-6 h-6 mr-2 text-orange-600" /> สรุปยอดและรายงาน</h2>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <button onClick={() => window.print()} className="flex-1 sm:flex-none flex items-center justify-center bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded text-sm transition-colors shadow"><Printer className="w-4 h-4 mr-2" /> พิมพ์เอกสาร (ทางการ)</button>
+                            <button onClick={exportCSV} className="flex-1 sm:flex-none flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"><FileText className="w-4 h-4 mr-2" /> CSV / Excel</button>
+                        </div>
+                    </div>
+
+                    {/* Filter Bar */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 no-print">
+                        <div className="flex items-center gap-2 mb-2 text-sm font-medium text-gray-700"><SlidersHorizontal className="w-4 h-4" /> ตัวกรองข้อมูล</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">วันที่</label>
+                                <input type="date" className="w-full p-2 border rounded text-sm" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">ช่องทางการเงิน</label>
+                                <select className="w-full p-2 border rounded text-sm" value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)}>
+                                    <option value="all">ทั้งหมด</option>
+                                    <option value="เงินสด">เฉพาะเงินสด</option>
+                                    <option value="เงินโอน">เฉพาะเงินโอน</option>
+                                    <option value="อื่นๆ">อื่นๆ</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">ประเภทรายการ</label>
+                                <select className="w-full p-2 border rounded text-sm" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+                                    <option value="all">ทั้งหมด</option>
+                                    <option value="general">บริจาคทั่วไป / ค่าน้ำไฟ</option>
+                                    <option value="thai_taan">ไทยทาน</option>
+                                    <option value="hua_wat">หัววัด</option>
+                                    <option value="roong_taan">โรงทาน</option>
+                                </select>
+                            </div>
+                            <div className="flex items-end">
+                                <button onClick={resetFilters} className="w-full p-2 bg-gray-100 text-gray-600 rounded text-sm hover:bg-gray-200 transition">ล้างตัวกรอง</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* WRAPPED IN PRINT-CONTAINER */}
                     <div className="print-container">
-                        <div className="print-header">
-                            <h1 className="text-2xl font-bold">รายงานสรุปยอดบริจาค</h1>
-                            <p>พิมพ์เมื่อ: {new Date().toLocaleString('th-TH')}</p>
+                        
+                        {/* OFFICIAL HEADER (Print Only) */}
+                        <div className="print-header-official text-center mb-6">
+                            <div className="mb-4">
+                                <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" alt="Logo" style={{ height: '100px', display: 'inline-block' }} />
+                            </div>
+                            <h1 className="text-2xl font-bold mb-1">บันทึกรายงานสรุปยอดบริจาค</h1>
+                            <h2 className="text-xl font-bold mb-1">{settings.templeName}</h2>
+                            <p className="text-sm">{settings.contact?.address}</p>
+                            <div className="flex justify-between items-end mt-4 border-b border-black pb-2">
+                                <div className="text-sm text-left">
+                                    <strong>สิ่งที่ส่งมาด้วย:</strong> รายละเอียดการรับบริจาค<br/>
+                                    <strong>ช่วงเวลาข้อมูล:</strong> {printDateDisplay}
+                                </div>
+                                <div className="text-sm text-right">
+                                    <strong>วันที่พิมพ์:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}<br/>
+                                    <strong>เวลา:</strong> {new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})} น.
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 text-center col-span-2 md:col-span-1"><span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">ยอดรวม (อนุมัติแล้ว)</span><span className="text-2xl sm:text-3xl font-bold text-green-600">{totalAmount.toLocaleString()} ฿</span></div>
+                        {/* Summary Cards (Screen Only) */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 screen-only">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 text-center col-span-2 md:col-span-1"><span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">ยอดรวม (ตามตัวกรอง)</span><span className="text-2xl sm:text-3xl font-bold text-green-600">{totalAmount.toLocaleString()} ฿</span></div>
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 text-center"><span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">จำนวนรายการ</span><span className="text-2xl sm:text-3xl font-bold text-blue-600">{filteredData.length}</span></div>
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 text-center"><span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">รอตรวจ</span><span className="text-2xl sm:text-3xl font-bold text-orange-500">{filteredData.filter(d=>d.status==='pending').length}</span></div>
                         </div>
+
+                        {/* Official Summary (Print Only) */}
+                        <div className="print-summary-official mb-4 p-4 border border-black">
+                            <h3 className="font-bold border-b border-black mb-2 pb-1">สรุปภาพรวม ({printDateDisplay})</h3>
+                            <div className="flex justify-between text-sm">
+                                <div><span>จำนวนรายการทั้งหมด:</span> <span className="font-bold ml-2">{filteredData.length} รายการ</span></div>
+                                <div><span>ยอดเงินรวมสุทธิ (อนุมัติแล้ว):</span> <span className="font-bold ml-2">{totalAmount.toLocaleString()} บาท</span></div>
+                            </div>
+                            {filteredData.some(d => d.status === 'pending') && (
+                                <div className="text-sm mt-1"><span>* มีรายการรอตรวจสอบ:</span> <span className="font-bold ml-2 text-red-600">{filteredData.filter(d=>d.status==='pending').length} รายการ</span></div>
+                            )}
+                        </div>
+
+                        {/* Table */}
                         <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ข้อมูล</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">รายการ</th><th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">ยอดเงิน</th><th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">สลิป</th><th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">สถานะ</th>{(userRole === 'admin' || userRole === 'staff') && (<th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase no-print">แก้ไข</th>)}</tr></thead>
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-16">ลำดับ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">วัน-เวลา</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ผู้บริจาค</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">รายการ</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase w-24">ยอดเงิน</th>
+                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-20">ช่องทาง</th>
+                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-20">สถานะ</th>
+                                        {(userRole === 'admin' || userRole === 'staff') && (<th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase no-print w-16">แก้ไข</th>)}
+                                    </tr>
+                                </thead>
                                 <tbody className="divide-y divide-gray-200 text-sm">
-                                    {filteredData.map(d => (
+                                    {filteredData.length > 0 ? filteredData.map((d, index) => (
                                         <tr key={d.id} className="hover:bg-gray-50 break-inside-avoid">
-                                            <td className="px-4 py-3"><div className="font-medium text-gray-900">{d.name}</div><div className="text-xs text-gray-500">{d.dateTime ? new Date(d.dateTime).toLocaleDateString('th-TH') : '-'}</div></td>
-                                            <td className="px-4 py-3"><div className="text-gray-900 line-clamp-2">{d.purpose}</div>{d.roongTaanDate && <div className="text-xs text-orange-600">โรงทาน: {d.roongTaanDate} ({d.roongTaanNote})</div>}</td>
-                                            <td className="px-4 py-3 text-right font-bold">{(d.amount || 0).toLocaleString()}</td>
-                                            <td className="px-4 py-3 text-center">{d.slipImage ? (<button onClick={() => setViewSlip(d.slipImage)} className="text-blue-600 hover:underline flex items-center justify-center mx-auto no-print"><ImageIcon className="w-4 h-4 mr-1" /> ดูรูป</button>) : <span className="text-gray-300">-</span>}</td>
-                                            <td className="px-4 py-3 text-center"><span className={`px-2 py-1 text-xs rounded-full ${d.status==='approved'?'bg-green-100 text-green-800':d.status==='pending'?'bg-yellow-100 text-yellow-800':'bg-red-100 text-red-800'}`}>{d.status==='approved'?'อนุมัติ':d.status==='pending'?'รอตรวจ':'ปฏิเสธ'}</span></td>
+                                            <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                                            <td className="px-4 py-3">
+                                                <div className="text-gray-900">{d.dateTime ? new Date(d.dateTime).toLocaleDateString('th-TH') : '-'}</div>
+                                                <div className="text-xs text-gray-500">{d.dateTime ? new Date(d.dateTime).toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'}) : '-'}</div>
+                                            </td>
+                                            <td className="px-4 py-3 font-medium text-gray-900">{d.name}</td>
+                                            <td className="px-4 py-3">
+                                                <div className="text-gray-900 line-clamp-2">{d.purpose}</div>
+                                                {d.roongTaanDate && <div className="text-xs text-orange-600 print:text-black">โรงทาน: {d.roongTaanDate} ({d.roongTaanNote})</div>}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold text-gray-900">{(d.amount || 0).toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-center text-gray-600">{d.method}</td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`status-badge px-2 py-1 text-xs rounded-full ${d.status==='approved'?'bg-green-100 text-green-800':d.status==='pending'?'bg-yellow-100 text-yellow-800':'bg-red-100 text-red-800'}`}>
+                                                    {d.status==='approved'?'อนุมัติ':d.status==='pending'?'รอตรวจ':'ปฏิเสธ'}
+                                                </span>
+                                            </td>
                                             {(userRole === 'admin' || userRole === 'staff') && (<td className="px-4 py-3 text-center no-print"><button onClick={() => setEditingDonation(d)} className="text-gray-400 hover:text-orange-600 p-1 hover:bg-orange-50 rounded transition" title="แก้ไขข้อมูล"><Pencil className="w-4 h-4" /></button></td>)}
                                         </tr>
-                                    ))}
-                                    {filteredData.length === 0 && (<tr><td colSpan="6" className="text-center py-8 text-gray-500">ไม่พบข้อมูล</td></tr>)}
+                                    )) : (
+                                        <tr><td colSpan="8" className="text-center py-8 text-gray-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>
+                                    )}
+                                    {/* Total Row for Print */}
+                                    {filteredData.length > 0 && (
+                                        <tr className="bg-gray-100 font-bold print:bg-transparent border-t-2 border-black">
+                                            <td colSpan="4" className="px-4 py-3 text-right pr-4">รวมยอดเงินทั้งสิ้น</td>
+                                            <td className="px-4 py-3 text-right border-double border-b-4 border-black">{totalAmount.toLocaleString()}</td>
+                                            <td colSpan="3"></td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Signature Section (Print Only) */}
+                        <div className="signature-section">
+                            <div className="signature-box">
+                                <p>จึงเรียนมาเพื่อโปรดทราบ</p>
+                                <div className="signature-line"></div>
+                                <p>(.......................................................)</p>
+                                <p className="font-bold mt-1">เจ้าหน้าที่การเงิน / ผู้จัดทำ</p>
+                                <p className="text-sm mt-1">วันที่ ......../......../............</p>
+                            </div>
+                            <div className="signature-box">
+                                <p>ทราบ / ดำเนินการ</p>
+                                <div className="signature-line"></div>
+                                <p>(.......................................................)</p>
+                                <p className="font-bold mt-1">เจ้าอาวาส / ประธานกรรมการ</p>
+                                <p className="text-sm mt-1">วันที่ ......../......../............</p>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             );
@@ -831,7 +1013,7 @@
         }
 
         // ==========================================
-        // 6. MAIN CONTAINERS (Defined before App)
+        // 6. MAIN CONTAINERS
         // ==========================================
         function DonationSystem({ onBack, donations, settings, onAdd, onUpdate, onUpdateSettings, onClearData, showNotification, user }) {
             const [activeTab, setActiveTab] = useState('donate');
@@ -865,7 +1047,7 @@
             };
 
             return (
-                <div className={`min-h-screen bg-${theme}-50 text-gray-800 no-print`}>
+                <div className={`min-h-screen bg-${theme}-50 text-gray-800`}> {/* ลบ no-print ออกแล้ว */}
                     {showLoginModal && (
                         <LoginModal 
                             role={pendingRole}
@@ -952,7 +1134,7 @@
                         </div>
                     </nav>
 
-                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 print-container">
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20"> {/* ลบ print-container ออกแล้ว */}
                         {activeTab === 'donate' && (
                             <DonationForm 
                                 userRole={userRole} 
@@ -969,6 +1151,7 @@
                                 userRole={userRole} 
                                 onUpdateDonation={(d) => { onUpdate(d); }} 
                                 showNotification={showNotification}
+                                settings={settings}
                             />
                         )}
                         {activeTab === 'announcer' && isAuthenticated && (
@@ -1302,7 +1485,7 @@
         }
 
         // ==========================================
-        // 7. MAIN APP COMPONENT (Defined last)
+        // 7. APP & ROOT
         // ==========================================
         function App() {
             const [currentRoute, setCurrentRoute] = useState('home');
@@ -1455,9 +1638,6 @@
             );
         }
 
-        // ==========================================
-        // 8. RENDER ROOT
-        // ==========================================
         const root = createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
