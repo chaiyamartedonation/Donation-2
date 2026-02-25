@@ -716,6 +716,7 @@
                                     <option value="all">ทั้งหมด</option>
                                     <option value="เงินสด">เฉพาะเงินสด</option>
                                     <option value="เงินโอน">เฉพาะเงินโอน</option>
+                                    <option value="ทำรายการผ่าน LINE">ทำรายการผ่าน LINE</option>
                                     <option value="อื่นๆ">อื่นๆ</option>
                                 </select>
                             </div>
@@ -845,16 +846,16 @@
                             <div className="signature-box">
                                 <p>จึงเรียนมาเพื่อโปรดทราบ</p>
                                 <div className="signature-line"></div>
-                                <p>(.......................................................)</p>
-                                <p className="font-bold mt-1">เจ้าหน้าที่การเงิน / ผู้จัดทำ</p>
-                                <p className="text-sm mt-1">วันที่ ......../......../............</p>
+                                <p>( นายนพดล  สันป่าเป้า )</p>
+                                <p className="font-bold mt-1">ไวยาวัจกร</p>
+                                <p className="text-sm mt-1">วันที่ {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                             </div>
                             <div className="signature-box">
                                 <p>ทราบ / ดำเนินการ</p>
                                 <div className="signature-line"></div>
-                                <p>(.......................................................)</p>
-                                <p className="font-bold mt-1">เจ้าอาวาส / ประธานกรรมการ</p>
-                                <p className="text-sm mt-1">วันที่ ......../......../............</p>
+                                <p>(พระครูวิจารณ์ธรรมาภิวัฒน์)</p>
+                                <p className="font-bold mt-1">เจ้าอาวาส</p>
+                                <p className="text-sm mt-1">วันที่ {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                             </div>
                         </div>
 
