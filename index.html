@@ -163,7 +163,7 @@
             Mic, RotateCcw, CalendarDays, Pencil, Save, Key, QrCode, ShoppingBag, 
             UploadCloud, Image as ImageIcon, Loader, Info, Settings, Trash2, AlertTriangle, 
             Plus, LogIn, Facebook, MessageCircle, Palette, Bell, FileCheck, Type, Newspaper, Edit, Layout,
-            Search, SlidersHorizontal
+            Search, SlidersHorizontal, ExternalLink
         } from 'lucide-react';
         import { initializeApp } from "firebase/app";
         import { 
@@ -241,6 +241,9 @@
             { id: 'Mitr', name: 'Mitr (เป็นมิตร)' },
             { id: 'Mali', name: 'Mali (ลายมือ)' },
         ];
+
+        // E-Tax Link Constant
+        const E_TAX_URL = "https://chaiyamartta.github.io/E-Tax-Donation/";
 
         // ==========================================
         // 3. UTILITIES
@@ -360,6 +363,35 @@
             );
         }
 
+        function ETaxModal({ onClose }) {
+            return (
+                <div className="fixed inset-0 bg-white z-[200] flex flex-col animate-fade-in" onClick={e => e.stopPropagation()}>
+                    {/* Header ของ E-Tax Modal */}
+                    <div className="flex justify-between items-center p-3 sm:p-4 border-b shadow-sm shrink-0 bg-gray-50">
+                        <h3 className="text-base sm:text-lg font-bold flex items-center text-green-600">
+                            <FileCheck className="w-5 h-5 mr-2" /> ขอลดหย่อนภาษี (E-Tax)
+                        </h3>
+                        <button onClick={onClose} className="p-2 sm:px-4 sm:py-2 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-700 rounded-full transition-colors flex items-center gap-1 text-sm font-medium">
+                            <span className="hidden sm:inline">ปิดหน้าต่าง</span> <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    {/* ส่วนของ Iframe แบบเต็มจอ 100% */}
+                    <div className="flex-grow relative w-full h-full bg-white overflow-hidden">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-gray-400">
+                            <Loader className="w-8 h-8 animate-spin mb-2" />
+                            <span className="text-sm">กำลังเชื่อมต่อระบบ E-Tax...</span>
+                        </div>
+                        <iframe 
+                            src={E_TAX_URL} 
+                            className="absolute inset-0 w-full h-full border-0 z-10 bg-transparent" 
+                            title="E-Tax Donation" 
+                            allowFullScreen>
+                        </iframe>
+                    </div>
+                </div>
+            );
+        }
+
         // ==========================================
         // 5. PANELS & MANAGERS
         // ==========================================
@@ -369,7 +401,7 @@
             const [formData, setFormData] = useState({ title: '', content: '', date: '', images: [] });
             const [editingId, setEditingId] = useState(null);
             const [isUploading, setIsUploading] = useState(false);
-            const [newsToDelete, setNewsToDelete] = useState(null); // เพิ่ม State สำหรับจัดการลบข่าว
+            const [newsToDelete, setNewsToDelete] = useState(null);
 
             useEffect(() => {
                 const q = query(collection(db, 'news'));
@@ -409,7 +441,6 @@
 
             return (
                 <div className="space-y-6">
-                    {/* ป๊อปอัปยืนยันการลบข่าว */}
                     {newsToDelete && (
                         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
                             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 text-center animate-scale-up">
@@ -442,6 +473,7 @@
             const [isUploading, setIsUploading] = useState(false);
             const [showThankYou, setShowThankYou] = useState(false);
             const [selectedItems, setSelectedItems] = useState({});
+            const [showETaxModal, setShowETaxModal] = useState(false);
             const theme = settings.themeColor || 'orange';
             const donationTypes = settings.donationTypes || [];
 
@@ -537,7 +569,16 @@
                         <div className={`w-20 h-20 bg-${theme}-100 rounded-full flex items-center justify-center mx-auto mb-6`}><HeartHandshake className={`w-10 h-10 text-${theme}-600`} /></div>
                         <h2 className={`text-2xl font-bold text-${theme}-700 mb-4`}>อนุโมทนาบุญ</h2>
                         <p className="text-gray-600 text-lg leading-relaxed mb-8">{settings.messages?.thankYou || 'ขอขอบคุณที่ร่วมทำบุญ'}</p>
-                        <button onClick={resetForm} className={`bg-${theme}-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-${theme}-700 transition`}>กลับสู่หน้าหลัก</button>
+                        
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                            <button onClick={resetForm} className={`bg-${theme}-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-${theme}-700 transition`}>
+                                กลับสู่หน้าหลัก
+                            </button>
+                            <button onClick={() => setShowETaxModal(true)} className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-green-700 transition flex items-center justify-center">
+                                <FileCheck className="w-5 h-5 mr-2" /> ขอลดหย่อนภาษี (E-Tax)
+                            </button>
+                        </div>
+                        {showETaxModal && <ETaxModal onClose={() => setShowETaxModal(false)} />}
                     </div>
                 );
             }
@@ -604,7 +645,7 @@
         function Dashboard({ donations, userRole, onUpdateDonation, onDeleteDonation, showNotification, settings }) {
             const [editingDonation, setEditingDonation] = useState(null);
             const [viewSlip, setViewSlip] = useState(null);
-            const [itemToDelete, setItemToDelete] = useState(null); // เพิ่ม State จัดการลบข้อมูล
+            const [itemToDelete, setItemToDelete] = useState(null); 
             
             // Filtering States
             const [filterDate, setFilterDate] = useState('');
@@ -948,7 +989,7 @@
             const [config, setConfig] = useState(settings);
             const [confirmClear, setConfirmClear] = useState('');
             const [showClearModal, setShowClearModal] = useState(false);
-            const [clearError, setClearError] = useState(''); // เพิ่ม State จัดการ Error
+            const [clearError, setClearError] = useState(''); 
             const [activeSection, setActiveSection] = useState('general');
             const [isUploading, setIsUploading] = useState(false); 
 
@@ -1107,7 +1148,7 @@
             };
 
             return (
-                <div className={`min-h-screen bg-${theme}-50 text-gray-800`}> {/* ลบ no-print ออกแล้ว */}
+                <div className={`min-h-screen bg-${theme}-50 text-gray-800`}>
                     {showLoginModal && (
                         <LoginModal 
                             role={pendingRole}
@@ -1194,7 +1235,7 @@
                         </div>
                     </nav>
 
-                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20"> {/* ลบ print-container ออกแล้ว */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20"> 
                         {activeTab === 'donate' && (
                             <DonationForm 
                                 userRole={userRole} 
@@ -1251,6 +1292,7 @@
             const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
             const [newsList, setNewsList] = useState([]);
             const [selectedNews, setSelectedNews] = useState(null); 
+            const [showETaxModal, setShowETaxModal] = useState(false);
             const totalAmount = useMemo(() => donations.filter(d => d.status === 'approved').reduce((sum, d) => sum + (Number(d.amount) || 0), 0), [donations]);
             const theme = settings.themeColor || 'orange';
 
@@ -1344,6 +1386,12 @@
                                     {navLinks.map((link) => (
                                         <a key={link.name} href={link.href} className={`font-medium hover:text-${theme}-400 transition-colors ${isScrolled ? 'text-gray-600' : 'text-white drop-shadow-md'}`}>{link.name}</a>
                                     ))}
+                                    
+                                    {/* Link for E-Tax */}
+                                    <button onClick={() => setShowETaxModal(true)} className={`font-medium text-green-400 hover:text-green-300 transition-colors flex items-center gap-1 ${isScrolled ? 'text-green-600' : 'drop-shadow-md'}`}>
+                                        <FileCheck className="w-4 h-4" /> ขอลดหย่อนภาษี
+                                    </button>
+
                                     <button onClick={() => onNavigate('donate-system')} className={`${settings.systemStatus === 'open' ? `bg-${theme}-600 hover:bg-${theme}-700` : 'bg-gray-600 hover:bg-gray-700'} text-white px-6 py-2 rounded-full font-bold flex items-center transition-transform hover:scale-105 shadow-lg`}>
                                         {settings.systemStatus === 'open' ? (<><HeartHandshake className="w-5 h-5 mr-2" /> ร่วมทำบุญ</>) : (<><Lock className="w-4 h-4 mr-2" /> เข้าสู่ระบบ (จนท.)</>)}
                                     </button>
@@ -1361,6 +1409,12 @@
                                     {navLinks.map((link) => (
                                         <a key={link.name} href={link.href} onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-3 text-base font-medium text-gray-700 hover:text-${theme}-600 hover:bg-${theme}-50 rounded-md`}>{link.name}</a>
                                     ))}
+                                    
+                                    {/* Mobile Link for E-Tax */}
+                                    <button onClick={() => { setMobileMenuOpen(false); setShowETaxModal(true); }} className={`w-full text-left px-3 py-3 text-base font-medium text-green-600 hover:bg-green-50 rounded-md flex items-center gap-2`}>
+                                        <FileCheck className="w-5 h-5" /> ขอลดหย่อนภาษี (E-Tax)
+                                    </button>
+
                                     <button onClick={() => onNavigate('donate-system')} className={`mt-4 w-full ${settings.systemStatus === 'open' ? `bg-${theme}-600` : 'bg-gray-600'} text-white px-4 py-3 rounded-md font-bold flex justify-center items-center`}>
                                         {settings.systemStatus === 'open' ? (<><HeartHandshake className="w-5 h-5 mr-2" /> ร่วมทำบุญออนไลน์</>) : (<><Lock className="w-4 h-4 mr-2" /> เข้าสู่ระบบ (จนท.)</>)}
                                     </button>
@@ -1375,7 +1429,7 @@
                             <img src={settings.bannerUrl} alt="ภาพวัด" className="w-full h-full object-cover opacity-60" />
                             <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
                         </div>
-                        <div className="relative z-20 text-center px-4 max-w-4xl mx-auto">
+                        <div className="relative z-20 text-center px-4 max-w-4xl mx-auto mt-16">
                             <span className={`block text-${theme}-400 font-semibold tracking-wider mb-2`}>ยินดีต้อนรับสู่</span>
                             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-lg">{settings.templeName}</h1>
                             <p className="text-xl md:text-2xl text-gray-200 mb-8 drop-shadow">ศูนย์รวมจิตใจชาวตำบลเวียงทอง สืบสานพระพุทธศาสนาและวัฒนธรรมล้านนา</p>
@@ -1386,10 +1440,16 @@
                                 </div>
                             </div>
                             {settings.systemStatus === 'open' ? (
-                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center">
                                     <button onClick={() => onNavigate('donate-system')} className={`bg-${theme}-600 hover:bg-${theme}-700 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-transform hover:scale-105 shadow-xl border-2 border-${theme}-500`}>
                                         <HeartHandshake className="w-6 h-6 mr-2" /> ร่วมบริจาค / จองโรงทาน
                                     </button>
+                                    
+                                    {/* Hero Button for E-Tax */}
+                                    <button onClick={() => setShowETaxModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-transform hover:scale-105 shadow-xl border-2 border-green-500">
+                                        <FileCheck className="w-6 h-6 mr-2" /> ขอลดหย่อนภาษี (E-Tax)
+                                    </button>
+
                                     <a href="#about" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-colors border border-white/50">ประวัติความเป็นมา</a>
                                 </div>
                             ) : (
@@ -1517,6 +1577,9 @@
                             </div>
                         </div>
                     )}
+
+                    {/* E-Tax Modal Overlay */}
+                    {showETaxModal && <ETaxModal onClose={() => setShowETaxModal(false)} />}
 
                     {/* 4. Contact/Footer Section */}
                     <footer id="contact" className="bg-gray-900 text-white pt-16 pb-8">
