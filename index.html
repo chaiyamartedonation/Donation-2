@@ -43,107 +43,74 @@
         .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
 
         /* ========================================= */
-        /* CSS สำหรับการพิมพ์ (แบบทางการ OFFICIAL)     */
+        /* CSS สำหรับการพิมพ์ (REPORT & RECEIPT)       */
         /* ========================================= */
         @media print {
-            /* ซ่อนทุกอย่างก่อน */
-            body * { visibility: hidden; }
+            /* กรณีพิมพ์รายงานปกติ */
+            body:not(.printing-receipt) * { visibility: hidden; }
+            body:not(.printing-receipt) .print-container, 
+            body:not(.printing-receipt) .print-container * { visibility: visible; }
             
-            /* แสดงเฉพาะส่วน Container ของรายงาน */
-            .print-container, .print-container * { visibility: visible; }
+            body:not(.printing-receipt) .print-container {
+                position: absolute; left: 0; top: 0; width: 100% !important; padding: 40px 50px !important; background: white !important;
+            }
 
-            /* ตั้งค่าหน้ากระดาษ */
+            /* กรณีพิมพ์ใบเสร็จ (ตั้งค่าเป็น A5 แนวนอน) */
+            @page {
+                size: A5 landscape;
+                margin: 5mm;
+            }
+
+            body.printing-receipt * { visibility: hidden; }
+            body.printing-receipt .receipt-print-zone, 
+            body.printing-receipt .receipt-print-zone * { visibility: visible; }
+            
+            body.printing-receipt .receipt-print-zone {
+                position: absolute; left: 0; top: 0; width: 100% !important; max-width: none !important; background: white !important; margin: 0; padding: 10mm !important;
+            }
+
+            /* ตั้งค่ากระดาษร่วมกัน */
             body {
-                background: white !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                height: auto !important;
-                overflow: visible !important;
-                -webkit-print-color-adjust: exact !important; 
-                print-color-adjust: exact !important;
+                background: white !important; margin: 0 !important; padding: 0 !important;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
             }
 
-            /* บังคับใช้ฟอนต์สารบรรณสำหรับการพิมพ์ */
-            body, .print-container * {
-                font-family: 'Sarabun', sans-serif !important;
-                color: black !important;
+            /* บังคับใช้ฟอนต์สารบรรณสำหรับการพิมพ์เอกสารราชการและใบเสร็จ */
+            .print-container *, .receipt-print-zone * {
+                font-family: 'Sarabun', sans-serif !important; color: black !important;
             }
 
-            /* จัดตำแหน่ง Container ให้พอดีกระดาษ */
-            .print-container {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100% !important;
-                padding: 40px 50px !important; /* ระยะขอบกระดาษมาตรฐาน */
-                background: white !important;
-                border: none !important;
-                box-shadow: none !important;
-                display: block !important;
-            }
-
-            /* ซ่อนปุ่มและส่วนที่ไม่ต้องการพิมพ์ */
             .no-print { display: none !important; }
             .screen-only { display: none !important; }
-
-            /* แสดงส่วนที่ซ่อนไว้บนหน้าจอปกติ */
-            .print-header-official { display: block !important; }
-            .print-summary-official { display: block !important; }
+            .print-header-official, .print-summary-official { display: block !important; }
             .signature-section { display: flex !important; }
 
-            /* ตารางแบบทางการ */
-            table { 
-                width: 100% !important; 
-                border-collapse: collapse !important; 
-                margin-top: 20px;
-                margin-bottom: 20px;
-            }
-            th {
-                border: 1px solid black !important;
-                padding: 8px !important;
-                font-size: 14px !important;
-                font-weight: bold !important;
-                background-color: #f0f0f0 !important;
-                text-align: center !important;
-            }
-            td {
-                border: 1px solid black !important;
-                padding: 8px !important;
-                font-size: 14px !important;
-                vertical-align: top;
-            }
+            /* ตารางรายงาน */
+            table { width: 100% !important; border-collapse: collapse !important; margin-top: 20px; margin-bottom: 20px; }
+            th, td { border: 1px solid black !important; padding: 8px !important; font-size: 14px !important; }
+            th { font-weight: bold !important; background-color: #f0f0f0 !important; text-align: center !important; }
             
-            /* Badge สถานะตอนพิมพ์ให้เป็นข้อความธรรมดา */
-            .status-badge {
-                border: none !important;
-                background: none !important;
-                padding: 0 !important;
-                font-weight: normal !important;
-                color: black !important;
-            }
+            .status-badge { border: none !important; background: none !important; padding: 0 !important; font-weight: normal !important; color: black !important; }
 
-            /* ส่วนลงนามท้ายกระดาษ */
-            .signature-section {
-                justify-content: space-between;
-                margin-top: 60px;
-                page-break-inside: avoid;
-            }
-            .signature-box {
-                text-align: center;
-                width: 40%;
-            }
-            .signature-line {
-                border-bottom: 1px dotted black;
-                width: 80%;
-                margin: 30px auto 10px auto;
-                height: 1px;
-            }
+            .signature-section { justify-content: space-between; margin-top: 60px; page-break-inside: avoid; }
+            .signature-box { text-align: center; width: 40%; }
+            .signature-line { border-bottom: 1px dotted black; width: 80%; margin: 30px auto 10px auto; height: 1px; }
         }
 
         /* ซ่อนส่วนที่ใช้เฉพาะตอนพิมพ์ในหน้าจอปกติ */
-        .print-header-official { display: none; }
-        .print-summary-official { display: none; }
-        .signature-section { display: none; }
+        .print-header-official, .print-summary-official, .signature-section { display: none; }
+        
+        /* สไตล์พิเศษสำหรับกรอบใบอนุโมทนา */
+        .thai-border {
+            border: 8px double #8B4513;
+            padding: 4px;
+            background-color: #FFFDF5;
+        }
+        .thai-inner-border {
+            border: 1px solid #8B4513;
+            padding: 30px;
+            height: 100%;
+        }
         
         /* Hide Scrollbar */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -163,27 +130,14 @@
             Mic, RotateCcw, CalendarDays, Pencil, Save, Key, QrCode, ShoppingBag, 
             UploadCloud, Image as ImageIcon, Loader, Info, Settings, Trash2, AlertTriangle, 
             Plus, LogIn, Facebook, MessageCircle, Palette, Bell, FileCheck, Type, Newspaper, Edit, Layout,
-            Search, SlidersHorizontal, ExternalLink
+            Search, SlidersHorizontal, ExternalLink, ScrollText
         } from 'lucide-react';
         import { initializeApp } from "firebase/app";
         import { 
-            getAuth, 
-            signInAnonymously, 
-            signInWithCustomToken,
-            onAuthStateChanged
+            getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged
         } from "firebase/auth";
         import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            updateDoc, 
-            doc, 
-            onSnapshot, 
-            query,
-            setDoc,
-            deleteDoc,
-            getDocs,
-            writeBatch
+            getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, setDoc, deleteDoc, getDocs, writeBatch
         } from "firebase/firestore";
 
         // ==========================================
@@ -222,7 +176,15 @@
                 content: "วัดไชยามาตย์ ตั้งอยู่ที่ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่...",
                 imageUrl: "https://images.unsplash.com/photo-1579548231964-b0a701fccf23?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
             },
-            passwords: { staff: '104', admin: 'admin104' },
+            receipt: {
+                taxId: "0 9940 02406 46 8",
+                abbotName: "พระครูวิจารณ์ธรรมาภิวัฒน์",
+                address: "104 ต.เวียงทอง อ.สูงเม่น จ.แพร่",
+                defaultPurpose: "เงินบริจาคเพื่อบำรุงวัด",
+                signatureUrl: "https://img5.pic.in.th/file/secure-sv1/-2023-11-16-05_18_24.jpg",
+                stampUrl: "https://img2.pic.in.th/pic/f92fb4547a09098985b9076b5c1c6a4b.png"
+            },
+            passwords: { staff: '104', admin: 'admin104', editPin: '104' },
             bankInfo: { bankName: 'ธ.กรุงไทย', accountName: 'วัดไชยามาตย์', accountNumber: 'xxx-x-xxxxx-x' },
             contact: { phone: '082-2801992', address: 'หมู่ที่ 1 ตำบลเวียงทอง อำเภอสูงเม่น จังหวัดแพร่ 54130', facebook: '', line: '' },
             messages: { thankYou: 'ขออนุโมทนาบุญ...' },
@@ -248,6 +210,31 @@
         // ==========================================
         // 3. UTILITIES
         // ==========================================
+        
+        // แปลงตัวเลขเป็นอักษรไทย (Thai Baht Text)
+        const convertToThaiBahtText = (amount) => {
+            if (amount === 0 || isNaN(amount)) return "ศูนย์บาทถ้วน";
+            const numberString = Math.floor(amount).toString();
+            const numbers = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
+            const positions = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน', 'ล้าน'];
+            let text = '';
+            let length = numberString.length;
+            for (let i = 0; i < length; i++) {
+                const num = parseInt(numberString.charAt(i));
+                const pos = length - i - 1;
+                
+                if (num !== 0) {
+                    if (pos === 1 && num === 1) { text += 'สิบ'; }
+                    else if (pos === 1 && num === 2) { text += 'ยี่สิบ'; }
+                    else if (pos === 0 && num === 1 && length > 1 && parseInt(numberString.charAt(i-1)) !== 0) { text += 'เอ็ด'; }
+                    else { text += numbers[num] + positions[pos]; }
+                } else if (pos === 6) { // จัดการกรณีล้าน
+                    text += positions[pos];
+                }
+            }
+            return text + "บาทถ้วน";
+        };
+
         const resizeImage = (file) => {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -258,12 +245,27 @@
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
                         const MAX_WIDTH = 800;
-                        const scaleSize = MAX_WIDTH / img.width;
-                        canvas.width = MAX_WIDTH;
-                        canvas.height = img.height * scaleSize;
+                        let targetWidth = img.width;
+                        let targetHeight = img.height;
+                        
+                        if (targetWidth > MAX_WIDTH) {
+                            targetHeight = targetHeight * (MAX_WIDTH / targetWidth);
+                            targetWidth = MAX_WIDTH;
+                        }
+                        
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
                         const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7));
+                        
+                        if (file.type === 'image/png') {
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/png'));
+                        } else {
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/jpeg', 0.7));
+                        }
                     };
                     img.onerror = reject;
                 };
@@ -289,48 +291,304 @@
         // ==========================================
         // 4. MODALS & SUB-COMPONENTS
         // ==========================================
-        function LoginModal({ role, onClose, onLoginSuccess, settings }) {
-            const [password, setPassword] = useState('');
-            const [error, setError] = useState('');
-            const staffPass = settings?.passwords?.staff || '104';
-            const adminPass = settings?.passwords?.admin || 'admin104';
+        
+        // ----- Receipt Modal (ใบอนุโมทนาบัตร) -----
+        function ReceiptModal({ donation, settings, onClose }) {
+            useEffect(() => {
+                document.body.classList.add('printing-receipt');
+                return () => {
+                    document.body.classList.remove('printing-receipt');
+                };
+            }, []);
 
-            const handleSubmit = (e) => { 
-                e.preventDefault(); 
-                if (role === 'staff' && password === staffPass) { onLoginSuccess(); } 
-                else if (role === 'admin' && password === adminPass) { onLoginSuccess(); } 
-                else { setError('รหัสผ่านไม่ถูกต้อง'); }
-            };
+            if (!donation) return null;
+
+            const dateObj = donation.dateTime ? new Date(donation.dateTime) : new Date();
+            const yearStr = (dateObj.getFullYear() + 543).toString().slice(-2); 
+            const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            const receiptNo = `RCP-${yearStr}${monthStr}-${donation.id.slice(-5).toUpperCase()}`;
+            
+            const printDateStr = dateObj.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+            const amountText = convertToThaiBahtText(donation.amount);
+            const rcpSettings = settings.receipt || DEFAULT_SETTINGS.receipt;
+            
+            let printPurpose = donation.purpose;
+            if (!printPurpose || printPurpose === '-') {
+                printPurpose = rcpSettings.defaultPurpose;
+            } else if (donation.roongTaanDate) {
+                printPurpose = `จองโรงทาน วันที่ ${new Date(donation.roongTaanDate).toLocaleDateString('th-TH')} (${donation.roongTaanNote || ''})`;
+            }
 
             return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 animate-scale-up">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-gray-900 flex items-center"><Lock className="w-5 h-5 mr-2 text-orange-600" /> เข้าสู่ระบบ ({role})</h3>
-                            <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
-                        </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
-                                <input type="password" className="w-full p-2 border border-gray-300 rounded outline-none focus:border-orange-500" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
-                                {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+                <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-gray-100 w-full max-w-4xl relative rounded-lg shadow-2xl flex flex-col max-h-[95vh] animate-scale-up">
+                        
+                        {/* Action Bar (No Print) */}
+                        <div className="bg-white px-6 py-4 border-b flex justify-between items-center rounded-t-lg sticky top-0 z-10 no-print shadow-sm">
+                            <h2 className="text-xl font-bold flex items-center text-gray-800"><ScrollText className="w-6 h-6 mr-2 text-orange-600"/> ใบอนุโมทนาบัตร / ใบเสร็จรับเงิน</h2>
+                            <div className="flex gap-2">
+                                <button onClick={() => window.print()} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded font-medium flex items-center transition">
+                                    <Printer className="w-5 h-5 mr-2"/> พิมพ์ (A5)
+                                </button>
+                                <button onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded transition">
+                                    <X className="w-5 h-5" />
+                                </button>
                             </div>
-                            <button type="submit" className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 rounded transition-colors">ยืนยัน</button>
-                        </form>
+                        </div>
+
+                        {/* Printable Area (A5 Landscape Format) */}
+                        <div className="p-4 sm:p-8 overflow-y-auto bg-gray-200 flex-grow flex justify-center items-center">
+                            <div className="receipt-print-zone bg-white shadow-xl text-black thai-border relative w-full" style={{fontFamily: "'Sarabun', sans-serif", maxWidth: '210mm', minHeight: '140mm'}}>
+                                <div className="thai-inner-border relative z-10 flex flex-col h-full p-4 sm:p-6">
+                                    
+                                    {/* Header */}
+                                    <div className="flex justify-between items-start mb-4 border-b-2 border-gray-800 pb-4">
+                                        <div className="flex items-center gap-4">
+                                            <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" alt="Logo" className="h-16 sm:h-20 object-contain" />
+                                            <div>
+                                                <h2 className="text-xl sm:text-2xl font-bold text-[#8B4513] mb-1">{settings.templeName}</h2>
+                                                <p className="text-xs sm:text-sm">{rcpSettings.address}</p>
+                                                <p className="text-xs sm:text-sm mt-0.5">เลขประจำตัวผู้เสียภาษี: {rcpSettings.taxId}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right flex flex-col items-end">
+                                            <h1 className="text-xl sm:text-2xl font-bold mb-3 text-gray-900 bg-gray-100 py-1.5 px-4 rounded-lg border border-gray-300">ใบเสร็จรับเงิน</h1>
+                                            {/* ใช้ Grid ป้องกันการปัดบรรทัด */}
+                                            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs sm:text-sm text-left">
+                                                <div className="font-bold text-right whitespace-nowrap">เล่มที่/เลขที่:</div> 
+                                                <div className="whitespace-nowrap">{receiptNo}</div>
+                                                <div className="font-bold text-right whitespace-nowrap">วันที่:</div> 
+                                                <div className="whitespace-nowrap">{printDateStr}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Body Text */}
+                                    <div className="flex-grow flex flex-col justify-center space-y-4 sm:space-y-6 text-base sm:text-lg mt-2">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="font-bold whitespace-nowrap">ได้รับเงินจาก:</span>
+                                            <div className="border-b border-dotted border-gray-500 flex-grow text-lg sm:text-xl px-2 font-medium">{donation.name}</div>
+                                        </div>
+                                        
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="font-bold whitespace-nowrap">รายการ:</span>
+                                            <div className="border-b border-dotted border-gray-500 flex-grow px-2 truncate">{printPurpose}</div>
+                                        </div>
+
+                                        <div className="flex flex-col sm:flex-row items-baseline gap-4">
+                                            <div className="flex items-baseline gap-2 flex-[1]">
+                                                <span className="font-bold whitespace-nowrap">จำนวนเงิน:</span>
+                                                <div className="border-b border-dotted border-gray-500 flex-grow font-bold text-xl sm:text-2xl text-center px-2">{(donation.amount || 0).toLocaleString()}</div>
+                                                <span className="font-bold whitespace-nowrap pr-2">บาท</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2 flex-[1.5]">
+                                                <span className="font-bold whitespace-nowrap text-sm sm:text-base">ตัวอักษร:</span>
+                                                <div className="border-b border-dotted border-gray-500 flex-grow text-center text-sm sm:text-base bg-gray-50 px-2 py-0.5 rounded-t truncate">({amountText})</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="font-bold whitespace-nowrap">ชำระโดย:</span>
+                                            <div className="border-b border-dotted border-gray-500 w-24 sm:w-32 px-2 text-center">{donation.method}</div>
+                                            {donation.generalNote && (
+                                                <>
+                                                    <span className="font-bold whitespace-nowrap ml-2 sm:ml-4">หมายเหตุ:</span>
+                                                    <div className="border-b border-dotted border-gray-500 flex-grow text-gray-600 px-2 italic text-sm sm:text-base truncate">{donation.generalNote}</div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Signatures */}
+                                    <div className="mt-8 flex justify-between items-end px-4 sm:px-12">
+                                        <div className="text-center w-40 sm:w-56 relative">
+                                            <p className="text-xs sm:text-sm mb-1 text-gray-600">ผู้บริจาค / ผู้ชำระเงิน</p>
+                                            <div className="border-b border-solid border-gray-600 w-full mb-2 h-10 relative flex justify-center items-end"></div>
+                                            <p className="text-xs sm:text-sm truncate">( {donation.name} )</p>
+                                        </div>
+                                        
+                                        <div className="text-center text-xs sm:text-sm italic text-gray-500 mb-4 px-2">
+                                            "ขออนุโมทนาบุญ ให้ประสบแต่ความสุข ความเจริญ"
+                                        </div>
+
+                                        <div className="text-center w-40 sm:w-56 relative">
+                                            <p className="text-xs sm:text-sm mb-1 text-gray-600">เจ้าอาวาส / ผู้รับเงิน</p>
+                                            <div className="border-b border-solid border-gray-600 w-full mb-2 h-10 relative flex justify-center items-end">
+                                                {rcpSettings.signatureUrl && (
+                                                    <img src={rcpSettings.signatureUrl} className="absolute bottom-0 max-h-16 w-auto object-contain pointer-events-none" style={{ mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
+                                                )}
+                                            </div>
+                                            <p className="text-xs sm:text-sm font-medium truncate">( {rcpSettings.abbotName} )</p>
+                                            <p className="text-[10px] sm:text-xs mt-1 text-gray-600 truncate">{settings.templeName}</p>
+                                            
+                                            {/* Stamp Image (3cm exact size) / No logic errors here */}
+                                            {rcpSettings.stampUrl && (
+                                                <div className="absolute top-0 right-0 pointer-events-none translate-x-2 sm:translate-x-4 -translate-y-2 sm:-translate-y-4 z-10" style={{ mixBlendMode: 'multiply' }}>
+                                                    <img 
+                                                        src={rcpSettings.stampUrl} 
+                                                        alt="ตราประทับ" 
+                                                        className="object-contain"
+                                                        style={{ width: '3cm', height: '3cm', transform: 'rotate(-10deg)', opacity: 0.9 }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             );
         }
 
-        function EditModal({ donation, userRole, onClose, onSave, showNotification }) {
+        function LoginScreen({ onClose, onLoginSuccess, settings }) {
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            
+            const staffPass = settings?.passwords?.staff || '104';
+            const adminPass = settings?.passwords?.admin || 'admin104';
+            const theme = settings?.themeColor || 'orange';
+
+            const handleSubmit = (e) => { 
+                e.preventDefault(); 
+                setIsLoading(true);
+                setError('');
+                
+                // จำลองการโหลดข้อมูลให้ดูเป็นระบบจริงจัง
+                setTimeout(() => {
+                    const usr = username.trim().toLowerCase();
+                    if (usr === 'staff' && password === staffPass) { 
+                        onLoginSuccess('staff'); 
+                    } else if (usr === 'admin' && password === adminPass) { 
+                        onLoginSuccess('admin'); 
+                    } else { 
+                        setError('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง'); 
+                        setIsLoading(false);
+                    }
+                }, 800);
+            };
+
+            return (
+                <div className="fixed inset-0 z-[200] flex min-h-screen bg-white">
+                    {/* Left Side - Image Background (Hidden on small screens) */}
+                    <div className="hidden lg:flex lg:w-1/2 relative bg-gray-900 items-center justify-center overflow-hidden">
+                        <img src={settings.bannerUrl} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-40 scale-105" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/40 to-transparent"></div>
+                        
+                        <div className="relative z-10 px-16 text-white max-w-2xl animate-fade-in">
+                            <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-8 border border-white/20">
+                                <ShieldCheck className="w-10 h-10 text-white" />
+                            </div>
+                            <h2 className="text-4xl font-bold mb-4 leading-tight">{settings.templeName}</h2>
+                            <p className="text-lg text-gray-300 font-light mb-8">ระบบจัดการข้อมูลการบริจาคและออกใบอนุโมทนาบัตรอิเล็กทรอนิกส์ สงวนสิทธิ์การเข้าใช้งานเฉพาะเจ้าหน้าที่ที่ได้รับมอบหมายเท่านั้น</p>
+                            
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                                <Lock className="w-4 h-4" /> ระบบรักษาความปลอดภัยข้อมูล
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Side - Login Form */}
+                    <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 relative bg-gray-50/50">
+                        <button onClick={onClose} className="absolute top-6 right-6 sm:top-8 sm:right-8 text-gray-400 hover:text-gray-600 transition flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 hover:shadow">
+                            <X className="w-4 h-4" /> <span className="text-sm font-medium">ปิดหน้าต่าง</span>
+                        </button>
+
+                        <div className="w-full max-w-md animate-scale-up">
+                            <div className="text-center mb-8">
+                                <div className={`w-20 h-20 bg-${theme}-100 text-${theme}-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-white`}>
+                                    <User className="w-10 h-10" />
+                                </div>
+                                <h1 className="text-3xl font-bold text-gray-900 mb-2">เข้าสู่ระบบ</h1>
+                                <p className="text-gray-500">กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน</p>
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="space-y-5 bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">ชื่อผู้ใช้งาน (Username)</label>
+                                    <div className="relative group">
+                                        <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${username ? `text-${theme}-500` : 'text-gray-400'}`}>
+                                            <User className="h-5 w-5" />
+                                        </div>
+                                        <input 
+                                            type="text" 
+                                            className={`w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-${theme}-500 focus:bg-white focus:border-transparent transition-all text-lg`} 
+                                            value={username} 
+                                            onChange={(e) => setUsername(e.target.value)} 
+                                            placeholder="admin หรือ staff"
+                                            autoFocus 
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">รหัสผ่านความปลอดภัย (Password)</label>
+                                    <div className="relative group">
+                                        <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${password ? `text-${theme}-500` : 'text-gray-400'}`}>
+                                            <Key className="h-5 w-5" />
+                                        </div>
+                                        <input 
+                                            type="password" 
+                                            className={`w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-${theme}-500 focus:bg-white focus:border-transparent transition-all text-lg tracking-widest`} 
+                                            value={password} 
+                                            onChange={(e) => setPassword(e.target.value)} 
+                                            placeholder="••••••••"
+                                        />
+                                    </div>
+                                    {error && (
+                                        <div className="bg-red-50 text-red-600 text-sm mt-4 p-3 rounded-lg flex items-center animate-fade-in border border-red-100">
+                                            <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0"/> {error}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button 
+                                    type="submit" 
+                                    disabled={isLoading || !password || !username}
+                                    className={`w-full bg-${theme}-600 hover:bg-${theme}-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-xl transition-all flex justify-center items-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 mt-2`}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader className="w-5 h-5 animate-spin mr-2" />
+                                            กำลังตรวจสอบข้อมูล...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <LogIn className="w-5 h-5 mr-2" />
+                                            ยืนยันการเข้าสู่ระบบ
+                                        </>
+                                    )}
+                                </button>
+                                
+                                <div className="text-center pt-2">
+                                    <p className="text-xs text-gray-400">
+                                        <Lock className="w-3 h-3 inline mr-1" />
+                                        การเข้าใช้งานระบบจะถูกบันทึกและตรวจสอบ
+                                    </p>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function EditModal({ donation, userRole, onClose, onSave, showNotification, settings }) {
             const [formData, setFormData] = useState({ ...donation });
             const [securityCode, setSecurityCode] = useState('');
             const [error, setError] = useState('');
             
+            const editPin = settings?.passwords?.editPin || '104';
+            
             const handleSave = () => {
                 if (!formData.name) return setError('กรุณาระบุชื่อ-สกุล');
                 if (!formData.amount || formData.amount < 0) return setError('จำนวนเงินไม่ถูกต้อง');
-                if (userRole === 'staff' && securityCode !== '104') return setError('รหัสลับความปลอดภัยไม่ถูกต้อง');
+                if (userRole === 'staff' && securityCode !== editPin) return setError('รหัสลับความปลอดภัยไม่ถูกต้อง');
                 onSave(formData); 
                 onClose();
             };
@@ -338,7 +596,7 @@
             const dateStr = formData.dateTime ? new Date(formData.dateTime).toLocaleString('th-TH') : '-';
 
             return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 animate-scale-up max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6 pb-2 border-b"><h3 className="text-xl font-bold text-gray-900 flex items-center"><Pencil className="w-5 h-5 mr-2 text-orange-600" /> แก้ไขข้อมูลบริจาค</h3><button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="space-y-4">
@@ -354,7 +612,7 @@
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label><select className="w-full p-2 border border-gray-300 rounded outline-none bg-white" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option value="pending">รอตรวจสอบ</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option></select></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">หมายเหตุเพิ่มเติม</label><textarea rows="2" className="w-full p-2 border border-gray-300 rounded outline-none" value={formData.generalNote || ''} onChange={e => setFormData({...formData, generalNote: e.target.value})} /></div>
                             <hr className="my-4 border-gray-200" />
-                            {userRole === 'staff' && (<div className="bg-red-50 border border-red-200 p-4 rounded-lg"><label className="block text-sm font-bold text-red-700 mb-2 flex items-center"><Key className="w-4 h-4 mr-2" /> ระบุรหัสลับความปลอดภัย</label><input type="password" placeholder="รหัสลับ (104)" className="w-full p-2 border border-red-300 rounded outline-none focus:ring-2 focus:ring-red-500" value={securityCode} onChange={e => setSecurityCode(e.target.value)} /><p className="text-xs text-red-500 mt-1">* ต้องใส่รหัสลับทุกครั้งเมื่อแก้ไขยอดเงิน</p></div>)}
+                            {userRole === 'staff' && (<div className="bg-red-50 border border-red-200 p-4 rounded-lg"><label className="block text-sm font-bold text-red-700 mb-2 flex items-center"><Key className="w-4 h-4 mr-2" /> ระบุรหัสลับความปลอดภัย</label><input type="password" placeholder={`รหัสลับ (${editPin})`} className="w-full p-2 border border-red-300 rounded outline-none focus:ring-2 focus:ring-red-500" value={securityCode} onChange={e => setSecurityCode(e.target.value)} /><p className="text-xs text-red-500 mt-1">* ต้องใส่รหัสลับทุกครั้งเมื่อแก้ไขยอดเงิน</p></div>)}
                             {error && <div className="text-red-600 text-sm font-medium bg-red-50 p-2 rounded text-center">{error}</div>}
                             <button onClick={handleSave} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg flex items-center justify-center transition"><Save className="w-5 h-5 mr-2" /> บันทึกการแก้ไข</button>
                         </div>
@@ -646,6 +904,7 @@
             const [editingDonation, setEditingDonation] = useState(null);
             const [viewSlip, setViewSlip] = useState(null);
             const [itemToDelete, setItemToDelete] = useState(null); 
+            const [viewReceipt, setViewReceipt] = useState(null); 
             
             // Filtering States
             const [filterDate, setFilterDate] = useState('');
@@ -709,9 +968,11 @@
                 : "ข้อมูลทั้งหมด";
 
             return (
-                <div className="space-y-6">
-                    {editingDonation && (<EditModal donation={editingDonation} userRole={userRole} onClose={() => setEditingDonation(null)} onSave={onUpdateDonation} showNotification={showNotification} />)}
+                <div className="space-y-6 relative">
+                    {/* Modal ชั้นต่างๆ */}
+                    {editingDonation && (<EditModal donation={editingDonation} userRole={userRole} onClose={() => setEditingDonation(null)} onSave={onUpdateDonation} showNotification={showNotification} settings={settings} />)}
                     {viewSlip && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setViewSlip(null)}><div className="relative max-w-3xl max-h-full"><img src={viewSlip} alt="Full Slip" className="max-w-full max-h-[90vh] rounded shadow-lg" /><button className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow" onClick={() => setViewSlip(null)}><X className="w-6 h-6" /></button></div></div>)}
+                    {viewReceipt && (<ReceiptModal donation={viewReceipt} settings={settings} onClose={() => setViewReceipt(null)} />)}
                     
                     {/* ป๊อปอัปยืนยันลบข้อมูลรายบุคคล */}
                     {itemToDelete && (
@@ -738,8 +999,8 @@
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 no-print">
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center"><ClipboardList className="w-6 h-6 mr-2 text-orange-600" /> สรุปยอดและรายงาน</h2>
                         <div className="flex gap-2 w-full sm:w-auto">
-                            <button onClick={() => window.print()} className="flex-1 sm:flex-none flex items-center justify-center bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded text-sm transition-colors shadow"><Printer className="w-4 h-4 mr-2" /> พิมพ์เอกสาร (ทางการ)</button>
-                            <button onClick={exportCSV} className="flex-1 sm:flex-none flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"><FileText className="w-4 h-4 mr-2" /> CSV / Excel</button>
+                            <button onClick={() => window.print()} className="flex-1 sm:flex-none flex items-center justify-center bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded text-sm transition-colors shadow"><Printer className="w-4 h-4 mr-2" /> พิมพ์รายงาน (PDF)</button>
+                            <button onClick={exportCSV} className="flex-1 sm:flex-none flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"><FileText className="w-4 h-4 mr-2" /> โหลด CSV</button>
                         </div>
                     </div>
 
@@ -831,7 +1092,7 @@
                                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase w-24">ยอดเงิน</th>
                                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-20">ช่องทาง</th>
                                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-20">สถานะ</th>
-                                        {(userRole === 'admin' || userRole === 'staff') && (<th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase no-print w-24">จัดการ</th>)}
+                                        {(userRole === 'admin' || userRole === 'staff') && (<th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase no-print w-32">จัดการ</th>)}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 text-sm">
@@ -856,10 +1117,17 @@
                                             </td>
                                             {(userRole === 'admin' || userRole === 'staff') && (
                                                 <td className="px-4 py-3 text-center no-print">
-                                                    <div className="flex justify-center items-center gap-2">
-                                                        <button onClick={() => setEditingDonation(d)} className="text-gray-400 hover:text-orange-600 p-1 hover:bg-orange-50 rounded transition" title="แก้ไขข้อมูล"><Pencil className="w-4 h-4" /></button>
+                                                    <div className="flex justify-center items-center gap-1">
+                                                        {d.status === 'approved' && (
+                                                            <button onClick={() => setViewReceipt(d)} className="text-gray-400 hover:text-green-600 p-1.5 hover:bg-green-50 rounded transition" title="พิมพ์ใบอนุโมทนาบัตร">
+                                                                <Printer className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => setEditingDonation(d)} className="text-gray-400 hover:text-orange-600 p-1.5 hover:bg-orange-50 rounded transition" title="แก้ไขข้อมูล">
+                                                            <Pencil className="w-4 h-4" />
+                                                        </button>
                                                         {userRole === 'admin' && (
-                                                            <button onClick={() => setItemToDelete(d)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition" title="ลบข้อมูล">
+                                                            <button onClick={() => setItemToDelete(d)} className="text-gray-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded transition" title="ลบข้อมูล">
                                                                 <Trash2 className="w-4 h-4" />
                                                             </button>
                                                         )}
@@ -894,7 +1162,7 @@
                             <div className="signature-box">
                                 <p>ทราบ / ดำเนินการ</p>
                                 <div className="signature-line"></div>
-                                <p>(พระครูวิจารณ์ธรรมาภิวัฒน์)</p>
+                                <p>({settings.receipt?.abbotName || 'พระครูวิจารณ์ธรรมาภิวัฒน์'})</p>
                                 <p className="font-bold mt-1">เจ้าอาวาส</p>
                                 <p className="text-sm mt-1">วันที่ {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                             </div>
@@ -1028,15 +1296,34 @@
                 }
             };
 
+            // Function for Receipt Images Upload
+            const handleReceiptImageUpload = async (e, field) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setIsUploading(true);
+                    try {
+                        const resized = await resizeImage(file);
+                        setConfig(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, [field]: resized }
+                        }));
+                    } catch (err) {
+                        alert("อัปโหลดรูปไม่สำเร็จ");
+                    }
+                    setIsUploading(false);
+                }
+            };
+
             return (
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold flex items-center text-gray-800"><Settings className="w-8 h-8 mr-2 text-orange-600" /> ตั้งค่าระบบ (Super Admin)</h2>
                     <div className="flex space-x-2 border-b overflow-x-auto">
-                        <button onClick={() => setActiveSection('general')} className={`px-4 py-2 font-medium ${activeSection === 'general' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ทั่วไป/ธีม</button>
-                        <button onClick={() => setActiveSection('about')} className={`px-4 py-2 font-medium ${activeSection === 'about' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>หน้าหลัก (About)</button>
-                        <button onClick={() => setActiveSection('donation')} className={`px-4 py-2 font-medium ${activeSection === 'donation' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>การรับบริจาค</button>
-                        <button onClick={() => setActiveSection('contact')} className={`px-4 py-2 font-medium ${activeSection === 'contact' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ติดต่อ/โซเชียล</button>
-                        <button onClick={() => setActiveSection('security')} className={`px-4 py-2 font-medium ${activeSection === 'security' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ความปลอดภัย</button>
+                        <button onClick={() => setActiveSection('general')} className={`px-4 py-2 font-medium whitespace-nowrap ${activeSection === 'general' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ทั่วไป/ธีม</button>
+                        <button onClick={() => setActiveSection('about')} className={`px-4 py-2 font-medium whitespace-nowrap ${activeSection === 'about' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>หน้าหลัก (About)</button>
+                        <button onClick={() => setActiveSection('donation')} className={`px-4 py-2 font-medium whitespace-nowrap ${activeSection === 'donation' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>การรับบริจาค</button>
+                        <button onClick={() => setActiveSection('receipt')} className={`px-4 py-2 font-medium whitespace-nowrap ${activeSection === 'receipt' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ใบเสร็จ/อนุโมทนา</button>
+                        <button onClick={() => setActiveSection('contact')} className={`px-4 py-2 font-medium whitespace-nowrap ${activeSection === 'contact' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ติดต่อ/โซเชียล</button>
+                        <button onClick={() => setActiveSection('security')} className={`px-4 py-2 font-medium whitespace-nowrap ${activeSection === 'security' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>ความปลอดภัย</button>
                     </div>
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                         {activeSection === 'general' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><PowerIcon className="w-5 h-5 mr-2" /> สถานะระบบ</h3><div className="space-y-2"><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'open' ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'open'} onChange={() => setConfig({...config, systemStatus: 'open'})} /><div><div className="font-bold text-green-700">เปิดรับบริจาค</div><div className="text-xs text-gray-500">ใช้งานปกติ</div></div></div></label><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'closed' ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'closed'} onChange={() => setConfig({...config, systemStatus: 'closed'})} /><div><div className="font-bold text-red-700">ปิดรับบริจาคชั่วคราว</div><div className="text-xs text-gray-500">แสดงหน้าเว็บ แต่ซ่อนฟอร์ม</div></div></div></label><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'maintenance' ? 'bg-yellow-50 border-yellow-500 ring-1 ring-yellow-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'maintenance'} onChange={() => setConfig({...config, systemStatus: 'maintenance'})} /><div><div className="font-bold text-yellow-700">ปิดปรับปรุงระบบ</div><div className="text-xs text-gray-500">แสดงหน้าแจ้งปิดปรับปรุง</div></div></div></label></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><Palette className="w-5 h-5 mr-2" /> ธีมสีเว็บไซต์</h3><div className="grid grid-cols-3 gap-2 mb-4">{themeColors.map(color => (<button key={color.id} onClick={() => setConfig({...config, themeColor: color.id})} className={`p-2 rounded border flex flex-col items-center gap-1 transition-all ${config.themeColor === color.id ? 'ring-2 ring-offset-2 ring-gray-400 border-gray-400 bg-gray-50' : 'hover:bg-gray-50'}`}><div className={`w-8 h-8 rounded-full ${color.class}`}></div><span className="text-xs">{color.name}</span></button>))}</div><h3 className="text-lg font-bold mb-4 flex items-center"><Type className="w-5 h-5 mr-2" /> ฟอนต์ (แบบตัวอักษร)</h3><select className="w-full p-2 border rounded mb-4" value={config.fontFamily || 'Sarabun'} onChange={e => setConfig({...config, fontFamily: e.target.value})}>{FONT_OPTIONS.map(font => (<option key={font.id} value={font.id}>{font.name}</option>))}</select><div><label className="block text-sm font-medium mb-1">ข้อความวิ่ง (Marquee Text)</label><input type="text" className="w-full p-2 border rounded" value={config.marqueeText || ''} onChange={e => setConfig({...config, marqueeText: e.target.value})} placeholder="เว้นว่างหากไม่ต้องการแสดง" /></div></div></div><div className="pt-4 border-t"><h3 className="text-lg font-bold mb-4 flex items-center"><ImageIcon className="w-5 h-5 mr-2" /> ข้อมูลพื้นฐาน</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium">ชื่อวัด / องค์กร</label><input type="text" className="w-full p-2 border rounded" value={config.templeName} onChange={e => setConfig({...config, templeName: e.target.value})} /></div><div><label className="text-sm font-medium">ลิงค์รูปหน้าปก (Banner URL)</label><input type="text" className="w-full p-2 border rounded" value={config.bannerUrl} onChange={e => setConfig({...config, bannerUrl: e.target.value})} /></div></div></div></div>)}
@@ -1068,7 +1355,7 @@
                                         <div>
                                             <label className="block text-sm font-medium mb-1">รูปภาพประกอบ</label>
                                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
-                                                <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onChange={handleAboutImageUpload} disabled={isUploading} />
+                                                <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={handleAboutImageUpload} disabled={isUploading} />
                                                 {isUploading ? (
                                                     <div className="flex flex-col items-center text-gray-500">
                                                         <Loader className="w-8 h-8 animate-spin mb-2" />
@@ -1103,9 +1390,76 @@
                             </div>
                         )}
 
+                        {/* RECEIPT Settings Section */}
+                        {activeSection === 'receipt' && (
+                            <div className="space-y-6 animate-fade-in">
+                                <h3 className="text-lg font-bold mb-4 flex items-center"><ScrollText className="w-5 h-5 mr-2 text-orange-600" /> ตั้งค่าใบอนุโมทนาบัตร / ใบเสร็จ</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">ชื่อเจ้าอาวาส / ผู้รับเงิน (ปรากฏในลายเซ็น)</label>
+                                            <input type="text" className="w-full p-2 border rounded" value={config.receipt?.abbotName || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, abbotName: e.target.value }})} placeholder="เช่น พระครูวิจารณ์ธรรมาภิวัฒน์" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">เลขประจำตัวผู้เสียภาษีอากร</label>
+                                            <input type="text" className="w-full p-2 border rounded font-mono" value={config.receipt?.taxId || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, taxId: e.target.value }})} placeholder="0 9940 02406 46 8" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">ที่ตั้งวัด (สำหรับแสดงในใบเสร็จ)</label>
+                                            <textarea rows="2" className="w-full p-2 border rounded" value={config.receipt?.address || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, address: e.target.value }})} placeholder="104 ต.เวียงทอง อ.สูงเม่น จ.แพร่"></textarea>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">วัตถุประสงค์การบริจาคเริ่มต้น</label>
+                                            <input type="text" className="w-full p-2 border rounded" value={config.receipt?.defaultPurpose || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, defaultPurpose: e.target.value }})} placeholder="เงินบริจาคเพื่อบำรุงวัด" />
+                                            <p className="text-xs text-gray-500 mt-1">* ใช้ในกรณีที่ผู้บริจาคไม่ได้ระบุรายละเอียดชัดเจน</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="border-t pt-6 mt-4">
+                                    <h4 className="font-bold text-gray-700 mb-4 flex items-center"><ImageIcon className="w-4 h-4 mr-2"/> รูปลายเซ็นและตราประทับ</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">รูปลายเซ็น (พื้นหลังใสจะดีที่สุด)</label>
+                                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
+                                                <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={e => handleReceiptImageUpload(e, 'signatureUrl')} disabled={isUploading} />
+                                                {isUploading ? (
+                                                    <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+                                                ) : config.receipt?.signatureUrl ? (
+                                                    <div className="relative pointer-events-none">
+                                                        <img src={config.receipt.signatureUrl} alt="Signature" className="max-h-16 mx-auto object-contain" style={{ mixBlendMode: 'multiply' }} />
+                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูปลายเซ็น</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปลายเซ็น</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">รูปตราประทับ (ระบบจะตั้งขนาดพิมพ์ 3 ซม.)</label>
+                                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
+                                                <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={e => handleReceiptImageUpload(e, 'stampUrl')} disabled={isUploading} />
+                                                {isUploading ? (
+                                                    <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+                                                ) : config.receipt?.stampUrl ? (
+                                                    <div className="relative pointer-events-none">
+                                                        <img src={config.receipt.stampUrl} alt="Stamp" className="w-16 h-16 mx-auto object-contain" style={{ mixBlendMode: 'multiply' }} />
+                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูปตราประทับ</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปตราประทับ</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {activeSection === 'donation' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><User className="w-5 h-5 mr-2" /> บัญชีรับเงิน</h3><div className="space-y-3 p-4 bg-gray-50 rounded-lg border"><div><label className="text-xs text-gray-500">ธนาคาร</label><input type="text" className="w-full p-2 border rounded" value={config.bankInfo?.bankName} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, bankName: e.target.value}})} /></div><div><label className="text-xs text-gray-500">ชื่อบัญชี</label><input type="text" className="w-full p-2 border rounded" value={config.bankInfo?.accountName} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, accountName: e.target.value}})} /></div><div><label className="text-xs text-gray-500">เลขบัญชี</label><input type="text" className="w-full p-2 border rounded font-mono text-lg" value={config.bankInfo?.accountNumber} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, accountNumber: e.target.value}})} /></div><div><label className="text-xs text-gray-500">ลิงค์รูป QR Code</label><input type="text" className="w-full p-2 border rounded" value={config.qrCodeUrl} onChange={e => setConfig({...config, qrCodeUrl: e.target.value})} /></div></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><Settings className="w-5 h-5 mr-2" /> ตั้งค่าเงื่อนไข</h3><div className="space-y-4"><div className="flex items-center justify-between p-3 border rounded-lg"><span>จำเป็นต้องแนบสลิปโอนเงิน</span><label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={config.requireSlip !== false} onChange={e => setConfig({...config, requireSlip: e.target.checked})} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div></label></div><div><label className="block text-sm font-medium mb-1">ข้อความขอบคุณ (อนุโมทนา)</label><textarea rows="3" className="w-full p-2 border rounded" value={config.messages?.thankYou || ''} onChange={e => setConfig({...config, messages: {...config.messages, thankYou: e.target.value}})}></textarea></div></div></div></div><div className="pt-4 border-t"><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold flex items-center"><ClipboardList className="w-5 h-5 mr-2" /> รายการรับบริจาค</h3><button onClick={handleAddDonationType} className="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 flex items-center"><Plus className="w-4 h-4 mr-1"/> เพิ่มรายการ</button></div><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-gray-50 text-gray-500"><tr><th className="p-2">ชื่อรายการ</th><th className="p-2 text-center">มีจำนวน?</th><th className="p-2 text-right">ราคา/หน่วย</th><th className="p-2 text-center">หน่วยนับ</th><th className="p-2 text-center">ลบ</th></tr></thead><tbody className="divide-y">{(config.donationTypes || []).map((type, idx) => (<tr key={idx}><td className="p-2"><input type="text" className="w-full p-1 border rounded" value={type.name} onChange={e => handleUpdateDonationType(idx, 'name', e.target.value)} disabled={type.isSpecial} /></td><td className="p-2 text-center"><input type="checkbox" checked={type.hasQuantity} onChange={e => handleUpdateDonationType(idx, 'hasQuantity', e.target.checked)} disabled={type.isSpecial} /></td><td className="p-2"><input type="number" className="w-full p-1 border rounded text-right" value={type.price || 0} onChange={e => handleUpdateDonationType(idx, 'price', parseInt(e.target.value))} disabled={!type.hasQuantity && !type.isSpecial} /></td><td className="p-2"><input type="text" className="w-full p-1 border rounded text-center" value={type.unit || ''} onChange={e => handleUpdateDonationType(idx, 'unit', e.target.value)} disabled={!type.hasQuantity} placeholder="-" /></td><td className="p-2 text-center">{!type.isSpecial && (<button onClick={() => handleRemoveDonationType(idx)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>)}</td></tr>))}</tbody></table></div></div></div>)}
                         {activeSection === 'contact' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><MapPin className="w-5 h-5 mr-2" /> ข้อมูลติดต่อ</h3><div className="space-y-3"><div><label className="text-sm font-medium">เบอร์โทรศัพท์</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.phone} onChange={e => setConfig({...config, contact: {...config.contact, phone: e.target.value}})} /></div><div><label className="text-sm font-medium">ที่อยู่</label><textarea rows="3" className="w-full p-2 border rounded" value={config.contact?.address} onChange={e => setConfig({...config, contact: {...config.contact, address: e.target.value}})}></textarea></div></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><MessageCircle className="w-5 h-5 mr-2" /> โซเชียลมีเดีย</h3><div className="space-y-3"><div><label className="text-sm font-medium">Facebook Link</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.facebook || ''} onChange={e => setConfig({...config, contact: {...config.contact, facebook: e.target.value}})} placeholder="https://facebook.com/..." /></div><div><label className="text-sm font-medium">Line Link / ID</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.line || ''} onChange={e => setConfig({...config, contact: {...config.contact, line: e.target.value}})} placeholder="https://line.me/..." /></div></div></div></div></div>)}
-                        {activeSection === 'security' && (<div className="space-y-6 animate-fade-in"><div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4 text-sm text-yellow-800"><AlertTriangle className="w-4 h-4 inline mr-1" /> คำเตือน: กรุณาจดจำรหัสผ่านใหม่ให้แม่นยำ หากลืมจะไม่สามารถกู้คืนได้ง่าย</div><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 text-blue-700 flex items-center"><User className="w-5 h-5 mr-2" /> รหัสเจ้าหน้าที่ (Staff)</h3><p className="text-sm text-gray-500 mb-2">สำหรับเจ้าหน้าที่จุดรับบริจาค (บันทึกข้อมูลได้ แต่ลบไม่ได้)</p><input type="text" className="w-full p-2 border rounded bg-gray-50" value={config.passwords?.staff || '104'} onChange={e => setConfig({...config, passwords: {...config.passwords, staff: e.target.value}})} /></div><div><h3 className="text-lg font-bold mb-4 text-red-700 flex items-center"><ShieldCheck className="w-5 h-5 mr-2" /> รหัสผู้ดูแลระบบ (Admin)</h3><p className="text-sm text-gray-500 mb-2">สิทธิ์สูงสุด (ตั้งค่าระบบ, ลบข้อมูล, อนุมัติรายการ)</p><input type="text" className="w-full p-2 border rounded bg-gray-50" value={config.passwords?.admin || 'admin104'} onChange={e => setConfig({...config, passwords: {...config.passwords, admin: e.target.value}})} /></div></div></div>)}
+                        {activeSection === 'security' && (<div className="space-y-6 animate-fade-in"><div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4 text-sm text-yellow-800"><AlertTriangle className="w-4 h-4 inline mr-1" /> คำเตือน: กรุณาจดจำรหัสผ่านใหม่ให้แม่นยำ หากลืมจะไม่สามารถกู้คืนได้ง่าย</div><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 text-blue-700 flex items-center"><User className="w-5 h-5 mr-2" /> บัญชีเจ้าหน้าที่ (Staff)</h3><p className="text-sm text-gray-700 mb-1">Username: <strong className="text-lg text-blue-800">staff</strong></p><p className="text-sm text-gray-500 mb-2">Password: (สำหรับเข้าสู่ระบบ)</p><input type="text" className="w-full p-2 border rounded bg-gray-50" value={config.passwords?.staff || '104'} onChange={e => setConfig({...config, passwords: {...config.passwords, staff: e.target.value}})} /></div><div><h3 className="text-lg font-bold mb-4 text-red-700 flex items-center"><ShieldCheck className="w-5 h-5 mr-2" /> บัญชีผู้ดูแลระบบ (Admin)</h3><p className="text-sm text-gray-700 mb-1">Username: <strong className="text-lg text-red-800">admin</strong></p><p className="text-sm text-gray-500 mb-2">Password: (สำหรับอนุมัติและแก้ไขการตั้งค่าระบบ)</p><input type="text" className="w-full p-2 border rounded bg-gray-50" value={config.passwords?.admin || 'admin104'} onChange={e => setConfig({...config, passwords: {...config.passwords, admin: e.target.value}})} /></div><div className="md:col-span-2 border-t pt-6 mt-2"><h3 className="text-lg font-bold mb-4 text-orange-700 flex items-center"><Key className="w-5 h-5 mr-2" /> รหัสลับความปลอดภัย (Edit PIN)</h3><p className="text-sm text-gray-500 mb-2">รหัสสำหรับยืนยันตัวตนเมื่อเจ้าหน้าที่ (Staff) ต้องการ <strong className="text-red-600">แก้ไขข้อมูลการรับบริจาค</strong></p><input type="text" className="w-full md:w-1/2 p-2 border rounded bg-gray-50" value={config.passwords?.editPin || '104'} onChange={e => setConfig({...config, passwords: {...config.passwords, editPin: e.target.value}})} /></div></div></div>)}
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t mt-6"><button onClick={handleSave} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-bold shadow-lg flex justify-center items-center transition-transform hover:scale-105"><Save className="w-5 h-5 mr-2" /> บันทึกการตั้งค่าทั้งหมด</button><button onClick={() => {setShowClearModal(true); setClearError(''); setConfirmClear('');}} className="flex-none bg-red-100 hover:bg-red-200 text-red-700 py-3 px-6 rounded-lg font-bold flex justify-center items-center transition-colors"><Trash2 className="w-5 h-5 mr-2" /> ล้างข้อมูลบริจาค</button></div>
                     {showClearModal && (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 text-center animate-scale-up"><AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" /><h3 className="text-xl font-bold text-red-600 mb-2">ยืนยันล้างข้อมูลทั้งหมด?</h3><p className="text-gray-600 mb-4 text-sm">การกระทำนี้จะลบรายการบริจาคทั้งหมดอย่างถาวร ไม่สามารถกู้คืนได้</p><input type="password" placeholder="ใส่รหัส Admin เพื่อยืนยัน" className="w-full p-2 border border-red-300 rounded mb-2" value={confirmClear} onChange={e => setConfirmClear(e.target.value)} />{clearError && <p className="text-red-500 text-xs mb-3">{clearError}</p>}<div className="flex gap-2"><button onClick={() => setShowClearModal(false)} className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">ยกเลิก</button><button onClick={handleClearDataSubmit} className="flex-1 bg-red-600 text-white py-2 rounded font-bold hover:bg-red-700">ยืนยันลบ</button></div></div></div>)}
@@ -1124,17 +1478,6 @@
             const [pendingRole, setPendingRole] = useState(null); 
             const theme = settings.themeColor || 'orange';
 
-            const handleRoleSwitch = (newRole) => {
-                if (newRole === 'donor') { 
-                    setUserRole('donor'); 
-                    setIsAuthenticated(false); 
-                    setActiveTab('donate'); 
-                } else { 
-                    setPendingRole(newRole); 
-                    setShowLoginModal(true); 
-                }
-            };
-
             const handleLogout = () => { 
                 setUserRole('donor'); 
                 setIsAuthenticated(false); 
@@ -1150,15 +1493,14 @@
             return (
                 <div className={`min-h-screen bg-${theme}-50 text-gray-800`}>
                     {showLoginModal && (
-                        <LoginModal 
-                            role={pendingRole}
+                        <LoginScreen 
                             settings={settings}
                             onClose={() => setShowLoginModal(false)}
-                            onLoginSuccess={() => { 
-                                setUserRole(pendingRole); 
+                            onLoginSuccess={(loggedInRole) => { 
+                                setUserRole(loggedInRole); 
                                 setIsAuthenticated(true); 
                                 setShowLoginModal(false); 
-                                showNotification(`เข้าสู่ระบบในฐานะ ${pendingRole === 'staff' ? 'เจ้าหน้าที่' : 'ผู้ดูแลระบบ'} สำเร็จ`); 
+                                showNotification(`เข้าสู่ระบบในฐานะ ${loggedInRole === 'staff' ? 'เจ้าหน้าที่' : 'ผู้ดูแลระบบ'} สำเร็จ`); 
                             }}
                         />
                     )}
@@ -1186,14 +1528,9 @@
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className={`flex items-center gap-2 text-sm bg-${theme}-700 p-2 rounded-lg`}>
-                                        <span className="font-medium whitespace-nowrap flex items-center gap-1"><Lock className="w-3 h-3"/> เข้าใช้งาน:</span>
-                                        <select className="bg-white text-gray-800 rounded px-2 py-1 outline-none w-full sm:w-auto text-xs sm:text-sm cursor-pointer" value={userRole} onChange={(e) => handleRoleSwitch(e.target.value)}>
-                                            <option value="donor">ผู้บริจาค (Guest)</option>
-                                            <option value="staff">หน่วยรับบริจาค (Staff)</option>
-                                            <option value="admin">ผู้ดูแลระบบ (Admin)</option>
-                                        </select>
-                                    </div>
+                                    <button onClick={() => setShowLoginModal(true)} className={`flex items-center gap-2 text-sm bg-white text-${theme}-700 hover:bg-gray-100 transition-colors px-4 py-2 rounded-lg font-bold shadow-sm`}>
+                                        <Lock className="w-4 h-4"/> ล็อกอินเข้าระบบ
+                                    </button>
                                 )}
                             </div>
                         </div>
