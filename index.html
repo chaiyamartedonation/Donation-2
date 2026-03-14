@@ -35,15 +35,51 @@
         /* Base styles */
         body { 
             font-family: 'Prompt', sans-serif; 
+            scroll-behavior: smooth;
         }
         
-        /* Custom Animations */
+        /* ========================================= */
+        /* Modern UI & Animations (Added)            */
+        /* ========================================= */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
         @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .animate-scale-up { animation: scaleUp 0.3s ease-out forwards; }
+        .animate-scale-up { animation: scaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
         @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { transform: scale(1); } }
         .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+
+        /* Floating Effect สำหรับกล่องยอดเงิน */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); box-shadow: 0 25px 30px -12px rgba(0, 0, 0, 0.5); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+
+        /* Animated Gradient Background สำหรับปุ่มหลัก */
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .bg-animate-gradient {
+            background-size: 200% 200%;
+            animation: gradientShift 4s ease infinite;
+        }
+
+        /* Glowing Effect */
+        @keyframes glowPulse {
+            0% { box-shadow: 0 0 10px rgba(249, 115, 22, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(249, 115, 22, 0.8); }
+            100% { box-shadow: 0 0 10px rgba(249, 115, 22, 0.4); }
+        }
+        .animate-glow { animation: glowPulse 2.5s infinite; }
+
+        /* Smooth Marquee */
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .animate-marquee { animation: marquee 25s linear infinite; }
 
         /* ========================================= */
         /* CSS สำหรับการพิมพ์ (REPORT & RECEIPT)       */
@@ -131,11 +167,11 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body>
+<body class="bg-gray-50">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useMemo } from 'react';
+        import React, { useState, useEffect, useMemo, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
         import { 
             Home, PlusCircle, ClipboardList, CheckCircle, User, ShieldCheck, Filter, 
@@ -144,7 +180,8 @@
             Mic, RotateCcw, CalendarDays, Pencil, Save, Key, QrCode, ShoppingBag, 
             UploadCloud, Image as ImageIcon, Loader, Info, Settings, Trash2, AlertTriangle, 
             Plus, LogIn, Facebook, MessageCircle, Palette, Bell, FileCheck, Type, Newspaper, Edit, Layout,
-            Search, SlidersHorizontal, ExternalLink, ScrollText, Users, UserCog, Mail, ChevronLeft
+            Search, SlidersHorizontal, ExternalLink, ScrollText, Users, UserCog, Mail, ChevronLeft, Sparkles,
+            ChevronDown
         } from 'lucide-react';
         import { initializeApp } from "firebase/app";
         import { 
@@ -155,7 +192,7 @@
         } from "firebase/firestore";
 
         // ==========================================
-        // 1. FIREBASE CONFIG
+        // 1. FIREBASE & GEMINI CONFIG
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyAHuvRRTNpYuh8MFiIwN4Lm106l09BED14",
@@ -170,6 +207,33 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // Gemini API Helper (Exponential Backoff)
+        const callGemini = async (promptText) => {
+            const apiKey = ""; // API Key provided by execution environment
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }],
+                systemInstruction: { parts: [{ text: "คุณคือผู้ช่วย AI อัจฉริยะสำหรับวัดในประเทศไทย ให้ตอบกลับเป็นภาษาไทยด้วยถ้อยคำที่สุภาพ ไพเราะ เป็นทางการและสร้างสรรค์" }] }
+            };
+
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i <= delays.length; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const result = await response.json();
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                } catch (error) {
+                    if (i === delays.length) throw error;
+                    await new Promise(res => setTimeout(res, delays[i]));
+                }
+            }
+        };
 
         // ==========================================
         // 2. CONSTANTS
@@ -208,7 +272,8 @@
             lineNotify: {
                 enabled: false,
                 webhookUrl: '',
-                targetIds: ''
+                targetIds: '',
+                messageTemplate: '🔔 แจ้งยอดรับบริจาค 🔔\n{{temple_name}}\n-------------------------\n👤 ผู้บริจาค: {{name}}\n📝 รายการ: {{purpose}}\n💰 จำนวนเงิน: {{amount}} บาท\n💳 ช่องทาง: {{method}}\n📌 หมายเหตุ: {{note}}\n-------------------------\n✨ ขออนุโมทนาบุญ ให้ประสบแต่ความสุข ความเจริญ ✨\n\nท่านอื่นสามารถบริจาคได้ผ่านทางช่องทาง line bot ของทางวัดไชยามาตย์ได้ที่ https://lin.ee/cjY0EKj พิมพ์ "บริจาค" และทำตามขั้นตอนได้เลย'
             },
             users: [
                 { id: 'u1', username: 'admin', password: 'admin104', role: 'admin', name: 'ผู้ดูแลระบบสูงสุด', permissions: ['all'] },
@@ -316,7 +381,7 @@
         // 4. MODALS & SUB-COMPONENTS
         // ==========================================
         
-        // ----- Receipt Modal (ใบอนุโมทนาบัตร A4 Landscape แก้ปัญหา PDF เพี้ยน 100%) -----
+        // ----- Receipt Modal (ใบอนุโมทนาบัตร A4 Landscape) -----
         function ReceiptModal({ donation, settings, onClose }) {
             const [isExporting, setIsExporting] = useState(false);
 
@@ -360,7 +425,7 @@
                     filename:     `ใบอนุโมทนาบัตร_${receiptNo}.pdf`,
                     image:        { type: 'jpeg', quality: 1.0 },
                     // บังคับจำลองหน้าจอความกว้างที่ 1123px เสมอ (ป้องกันตัวหนังสือบีบอัด)
-                    html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 1123 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 1123, letterRendering: true },
                     jsPDF:        { unit: 'px', format: [1123, 794], orientation: 'landscape' }
                 };
 
@@ -376,69 +441,73 @@
             };
 
             return (
-                <div className="fixed inset-0 bg-black/80 z-[150] flex flex-col items-center justify-start p-4 overflow-hidden">
+                <div className="fixed inset-0 bg-black/80 z-[150] flex flex-col items-center justify-start p-4 overflow-hidden backdrop-blur-sm">
                     
                     {/* Action Bar */}
-                    <div className="bg-white rounded-xl px-4 py-3 flex justify-between items-center z-20 no-print shadow-xl w-full max-w-[1123px] mb-4 shrink-0">
+                    <div className="bg-white rounded-2xl px-5 py-3 flex justify-between items-center z-20 no-print shadow-2xl w-full max-w-[1123px] mb-4 shrink-0 border border-white/20">
                         <h2 className="text-lg font-bold flex items-center text-gray-800"><ScrollText className="w-5 h-5 mr-2 text-orange-600"/> ตัวอย่างใบอนุโมทนาบัตร (A4)</h2>
                         <div className="flex gap-2">
-                            <button onClick={handleDownloadPDF} disabled={isExporting} className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium flex items-center transition shadow">
+                            <button onClick={handleDownloadPDF} disabled={isExporting} className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl font-medium flex items-center transition shadow-lg hover:shadow-green-500/30 transform hover:-translate-y-0.5">
                                 {isExporting ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Download className="w-4 h-4 mr-2"/>}
-                                {isExporting ? 'กำลังสร้าง PDF...' : 'ดาวน์โหลด PDF'}
+                                {isExporting ? 'กำลังสร้าง PDF...' : 'โหลดเอกสาร'}
                             </button>
-                            <button onClick={() => window.print()} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium flex items-center transition shadow">
-                                <Printer className="w-4 h-4 sm:mr-2"/> <span className="hidden sm:inline">สั่งพิมพ์</span>
+                            <button onClick={() => window.print()} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-xl font-medium flex items-center transition shadow-sm hover:shadow">
+                                <Printer className="w-4 h-4 sm:mr-2 text-gray-500"/> <span className="hidden sm:inline">สั่งพิมพ์</span>
                             </button>
-                            <button onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-lg transition ml-2">
+                            <button onClick={onClose} className="bg-gray-100 hover:bg-red-50 hover:text-red-500 text-gray-500 p-2 rounded-xl transition ml-2">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
 
-                    {/* Preview Area Container - ซูมให้พอดีจอ แต่ขนาดจริงข้างในโดนล็อกไว้ */}
-                    <div className="w-full max-w-[1123px] flex-grow overflow-auto bg-gray-900/40 rounded-xl flex justify-center p-2 sm:p-6 hide-scrollbar">
+                    {/* Preview Area Container */}
+                    <div className="w-full max-w-[1123px] flex-grow overflow-auto rounded-xl flex justify-center p-2 sm:p-6 hide-scrollbar">
                         
                         {/* ACTUAL A4 LANDSCAPE EXACT PIXELS (1123 x 794) - เปลี่ยน Flex เป็น Table ป้องกัน PDF พัง */}
-                        <div id="receipt-pdf-content" className="bg-white shadow-2xl relative shrink-0" 
-                             style={{ fontFamily: "'Sarabun', sans-serif", width: '1123px', height: '794px', color: '#1f2937', boxSizing: 'border-box', overflow: 'hidden' }}>
+                        <div id="receipt-pdf-content" className="bg-white shadow-2xl relative shrink-0 overflow-hidden" 
+                             style={{ fontFamily: "'Sarabun', sans-serif", width: '1123px', height: '794px', color: '#1f2937', boxSizing: 'border-box' }}>
                             
                             {/* แถบสีด้านบน */}
-                            <div className="absolute top-[20px] left-[20px] right-[20px] h-[15px] bg-[#f97316]" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
+                            <div className="absolute top-0 left-0 right-0 h-[12px] bg-gradient-to-r from-[#ea580c] via-[#f59e0b] to-[#ea580c] z-10" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
                             
+                            {/* กราฟิกตกแต่งมุม */}
+                            <div className="absolute bottom-0 right-0 w-[350px] h-[350px] bg-[#fff7ed] rounded-tl-full pointer-events-none z-0" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
+                            <div className="absolute top-0 left-0 w-[200px] h-[200px] bg-[#fff7ed] rounded-br-full pointer-events-none z-0" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
+
                             {/* ลายน้ำ */}
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0">
                                 <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" crossOrigin="anonymous" style={{ width: '450px' }} alt="Watermark" />
                             </div>
 
-                            <div className="relative z-20 w-full h-full p-[70px] pt-[80px] flex flex-col">
+                            <div className="relative z-20 w-full h-full px-[80px] pt-[70px] pb-[50px] flex flex-col">
                                 
                                 {/* Header - ใช้ Table เพื่อให้จัดหน้าซ้ายขวาได้ตรงเป๊ะตอนแปลง PDF */}
-                                <table className="w-full border-b border-gray-300 pb-[20px] mb-[30px]" style={{borderCollapse: 'collapse'}}>
+                                <table className="w-full border-b border-gray-200 pb-[20px] mb-[30px]" style={{borderCollapse: 'collapse'}}>
                                     <tbody>
                                         <tr>
-                                            <td className="align-top w-[140px] pr-[20px]">
-                                                <div className="w-[120px] h-[120px] bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center p-2" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            <td className="align-top w-[130px] pr-[20px] pb-[20px]">
+                                                <div className="w-[110px] h-[110px] bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center p-2" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                                     <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" crossOrigin="anonymous" alt="Logo" className="max-w-full max-h-full object-contain" />
                                                 </div>
                                             </td>
                                             <td className="align-top pt-[10px]">
-                                                <h2 className="text-[38px] font-bold text-[#1f2937] tracking-tight m-0 p-0 leading-none mb-[8px]">{settings.templeName}</h2>
-                                                <p className="text-[18px] text-gray-500 m-0 p-0 mb-[4px]">{rcpSettings.address}</p>
+                                                <h2 className="text-[34px] font-bold text-gray-800 tracking-tight m-0 p-0 leading-none mb-[8px]">{settings.templeName}</h2>
+                                                <p className="text-[17px] text-gray-500 m-0 p-0 mb-[4px]">{rcpSettings.address}</p>
                                                 <p className="text-[15px] text-gray-400 m-0 p-0">เลขประจำตัวผู้เสียภาษีอากร: <span className="font-mono">{rcpSettings.taxId}</span></p>
                                             </td>
                                             <td className="align-top text-right pt-[10px]">
-                                                <div className="inline-block bg-[#fff7ed] text-[#c2410c] px-[24px] py-[8px] rounded-[24px] font-bold text-[24px] tracking-wide mb-[16px]" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                                <div className="inline-block bg-[#fff7ed] text-[#c2410c] px-[24px] py-[8px] rounded-full font-bold text-[24px] tracking-wide mb-[16px]" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                                     ใบอนุโมทนาบัตร
                                                 </div>
                                                 <table className="text-[16px] text-gray-500 font-medium ml-auto" style={{borderCollapse: 'collapse'}}>
                                                     <tbody>
                                                         <tr>
-                                                            <td className="text-right pr-3 pb-2">เลขที่อ้างอิง:</td>
-                                                            <td className="text-gray-900 font-bold pb-2 text-left">{receiptNo}</td>
+                                                            <td className="text-right pr-3 pb-2 whitespace-nowrap">เลขที่อ้างอิง:</td>
+                                                            <td className="text-gray-900 font-bold pb-2 text-left whitespace-nowrap">{receiptNo}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td className="text-right pr-3">วันที่ทำรายการ:</td>
-                                                            <td className="text-gray-900 font-bold text-left">{printDateStr}</td>
+                                                            <td className="text-right pr-3 whitespace-nowrap">วันที่ทำรายการ:</td>
+                                                            <td className="text-gray-900 font-bold text-left whitespace-nowrap">{printDateStr}</td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
@@ -447,65 +516,76 @@
                                     </tbody>
                                 </table>
 
-                                {/* Body Text - โครงสร้างตาราง (Table) ช่วยป้องกันข้อความซ้อนทับกัน (100% Layout Safe) */}
-                                <div className="flex-grow pt-[10px]">
-                                    <table className="w-full text-[24px]" style={{ borderSpacing: '0 30px', borderCollapse: 'separate' }}>
+                                {/* Body Text - โครงสร้างตาราง (Table) พร้อม Colgroup ป้องกันข้อความซ้อนทับกันเด็ดขาด */}
+                                <div className="flex-grow pt-[20px]">
+                                    <table className="w-full text-[22px]" style={{ tableLayout: 'fixed', borderSpacing: '0 30px', borderCollapse: 'separate' }}>
+                                        <colgroup>
+                                            <col style={{ width: '180px' }} />
+                                            <col style={{ width: '320px' }} />
+                                            <col style={{ width: '120px' }} />
+                                            <col style={{ width: 'auto' }} />
+                                        </colgroup>
                                         <tbody>
                                             <tr>
-                                                <td className="text-gray-500 font-medium w-[180px] align-bottom pb-1">ได้รับเงินจาก</td>
-                                                <td colSpan="3" className="border-b border-gray-300 font-bold text-[30px] text-gray-800 px-4 align-bottom pb-1">{donation.name}</td>
+                                                <td className="text-gray-500 font-medium align-bottom pb-1 whitespace-nowrap">ได้รับเงินจาก</td>
+                                                <td colSpan="3" className="border-b border-gray-300 font-bold text-[28px] text-gray-800 px-4 align-bottom pb-1 overflow-hidden truncate">{donation.name}</td>
                                             </tr>
                                             <tr>
-                                                <td className="text-gray-500 font-medium align-bottom pb-1">เพื่อร่วมทำบุญ</td>
-                                                <td colSpan="3" className="border-b border-gray-300 text-[26px] text-gray-800 px-4 align-bottom pb-1">{printPurpose}</td>
+                                                <td className="text-gray-500 font-medium align-bottom pb-1 whitespace-nowrap">เพื่อร่วมทำบุญ</td>
+                                                <td colSpan="3" className="border-b border-gray-300 text-[24px] text-gray-800 px-4 align-bottom pb-1 overflow-hidden truncate">{printPurpose}</td>
                                             </tr>
                                             <tr>
-                                                <td className="text-gray-500 font-medium align-bottom pb-1">จำนวนเงิน</td>
-                                                <td className="border-b border-gray-300 font-bold text-[34px] text-[#ea580c] px-4 align-bottom text-center pb-1 w-[250px]">
+                                                <td className="text-gray-500 font-medium align-bottom pb-1 whitespace-nowrap">จำนวนเงิน</td>
+                                                <td className="border-b border-gray-300 font-bold text-[32px] text-[#ea580c] px-4 align-bottom text-center pb-1">
                                                     {(donation.amount || 0).toLocaleString()}
                                                 </td>
-                                                <td className="text-gray-500 font-medium align-bottom px-6 pb-1 w-[100px] text-center">บาท</td>
-                                                <td className="border-b border-gray-300 text-center text-[22px] text-gray-700 font-medium bg-[#f9fafb] align-bottom pb-1" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                                <td className="text-gray-500 font-medium align-bottom px-4 pb-1 text-center whitespace-nowrap">บาท</td>
+                                                <td className="border-b border-gray-300 text-center text-[20px] text-gray-600 font-medium bg-[#f9fafb] align-bottom pb-1 whitespace-nowrap overflow-hidden" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                                     ( {amountText} )
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td className="text-gray-500 font-medium align-bottom pb-1">ชำระโดย</td>
-                                                <td className="border-b border-gray-300 text-gray-800 px-4 text-center align-bottom font-medium pb-1">{donation.method}</td>
-                                                <td className="text-gray-500 font-medium align-bottom px-6 pb-1 w-[120px] text-center">หมายเหตุ</td>
-                                                <td className="border-b border-gray-300 text-[22px] text-gray-600 px-4 italic align-bottom pb-1">{donation.generalNote || "-"}</td>
+                                                <td className="text-gray-500 font-medium align-bottom pb-1 whitespace-nowrap">ชำระโดย</td>
+                                                <td className="border-b border-gray-300 text-gray-800 px-4 text-center align-bottom font-medium pb-1 whitespace-nowrap overflow-hidden text-ellipsis">{donation.method}</td>
+                                                <td className="text-gray-500 font-medium align-bottom px-4 pb-1 text-center whitespace-nowrap">หมายเหตุ</td>
+                                                <td className="border-b border-gray-300 text-[20px] text-gray-600 px-4 italic align-bottom pb-1 whitespace-nowrap overflow-hidden text-ellipsis">{donation.generalNote || "-"}</td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
 
                                 {/* Signatures - ใช้ Table ป้องกันข้อความเซ็นชื่อกระโดดพัง */}
-                                <table className="w-full mt-auto z-20 relative" style={{borderCollapse: 'collapse'}}>
+                                <table className="w-full mt-auto z-20 relative" style={{borderCollapse: 'collapse', tableLayout: 'fixed'}}>
+                                    <colgroup>
+                                        <col style={{ width: '30%' }} />
+                                        <col style={{ width: '40%' }} />
+                                        <col style={{ width: '30%' }} />
+                                    </colgroup>
                                     <tbody>
                                         <tr>
-                                            <td className="w-[30%] text-center align-bottom px-4">
+                                            <td className="text-center align-bottom px-4 overflow-hidden">
                                                 <div className="border-b border-gray-300 w-full mb-[12px] h-[60px]"></div>
-                                                <p className="text-[20px] font-bold text-gray-800 m-0 mb-1">( {donation.name} )</p>
-                                                <p className="text-[14px] text-gray-400 uppercase tracking-widest m-0">ผู้บริจาค / ผู้ชำระเงิน</p>
+                                                <p className="text-[18px] font-bold text-gray-800 m-0 mb-1 whitespace-nowrap overflow-hidden text-ellipsis">( {donation.name} )</p>
+                                                <p className="text-[13px] text-gray-400 uppercase tracking-widest m-0 whitespace-nowrap">ผู้บริจาค / ผู้ชำระเงิน</p>
                                             </td>
-                                            <td className="w-[40%] text-center align-bottom pb-[25px] px-4">
-                                                <div className="text-[18px] text-[#ea580c] font-medium italic">
+                                            <td className="text-center align-bottom pb-[25px] px-4">
+                                                <div className="text-[18px] text-[#ea580c] font-medium italic opacity-80">
                                                     " สุโข ปุญฺญสฺส อุจฺจโย : การสั่งสมบุญนำสุขมาให้ "
                                                 </div>
                                             </td>
-                                            <td className="w-[30%] text-center align-bottom px-4 relative">
+                                            <td className="text-center align-bottom px-4 relative overflow-hidden">
                                                 <div className="border-b border-gray-300 w-full mb-[12px] h-[60px] relative">
                                                     {/* ลายเซ็น */}
                                                     {rcpSettings.signatureUrl && (
-                                                        <img src={rcpSettings.signatureUrl} crossOrigin="anonymous" className="absolute bottom-1 left-0 right-0 mx-auto max-h-[85px] w-auto object-contain" style={{ mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
+                                                        <img src={rcpSettings.signatureUrl} crossOrigin="anonymous" className="absolute bottom-1 left-0 right-0 mx-auto max-h-[80px] w-auto object-contain" style={{ mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
                                                     )}
                                                 </div>
-                                                <p className="text-[20px] font-bold text-gray-800 m-0 mb-1">( {rcpSettings.abbotName} )</p>
-                                                <p className="text-[14px] text-gray-400 uppercase tracking-widest m-0">เจ้าอาวาส / ผู้รับเงิน</p>
+                                                <p className="text-[18px] font-bold text-gray-800 m-0 mb-1 whitespace-nowrap overflow-hidden text-ellipsis">( {rcpSettings.abbotName} )</p>
+                                                <p className="text-[13px] text-gray-400 uppercase tracking-widest m-0 whitespace-nowrap">เจ้าอาวาส / ผู้รับเงิน</p>
                                                 
                                                 {/* ตราประทับ */}
                                                 {rcpSettings.stampUrl && (
-                                                    <div className="absolute top-[-30px] right-[-10px] w-[140px] h-[140px]" style={{ mixBlendMode: 'multiply' }}>
+                                                    <div className="absolute top-[-30px] right-[-10px] w-[130px] h-[130px]" style={{ mixBlendMode: 'multiply' }}>
                                                         <img src={rcpSettings.stampUrl} crossOrigin="anonymous" alt="ตราประทับ" className="w-full h-full object-contain opacity-90 -rotate-12" />
                                                     </div>
                                                 )}
@@ -521,32 +601,26 @@
             );
         }
 
-        // ----- Login & Reset Password Modal -----
+        // ----- Login Screen -----
         function LoginScreen({ onClose, onLoginSuccess, onUpdateSettings, showNotification, settings }) {
             const [username, setUsername] = useState('');
             const [password, setPassword] = useState('');
             const [error, setError] = useState('');
             const [isLoading, setIsLoading] = useState(false);
-            
-            // States for Reset Password Mode
             const [isResetMode, setIsResetMode] = useState(false);
             const [resetUsername, setResetUsername] = useState('');
             const [newPass, setNewPass] = useState('');
             const [confirmPass, setConfirmPass] = useState('');
-            
             const theme = settings?.themeColor || 'orange';
 
-            // โหมดปกติ: ตรวจสอบการเข้าสู่ระบบ
             const handleLoginSubmit = (e) => { 
                 e.preventDefault(); 
                 setIsLoading(true);
                 setError('');
-                
                 setTimeout(() => {
                     const inputUser = username.trim().toLowerCase();
                     const users = settings.users || [];
                     const foundUser = users.find(u => u.username.toLowerCase() === inputUser && u.password === password);
-
                     if (foundUser) {
                         onLoginSuccess(foundUser); 
                     } else { 
@@ -556,40 +630,27 @@
                 }, 800);
             };
 
-            // โหมดรีเซ็ต: บังคับให้ Admin เปลี่ยนรหัสผ่านใหม่
             const handleResetSubmit = (e) => {
                 e.preventDefault();
                 setError('');
-                
-                if (newPass !== confirmPass) {
-                    setError('รหัสผ่านใหม่ไม่ตรงกัน กรุณาพิมพ์ให้เหมือนกันทั้ง 2 ช่อง');
-                    return;
-                }
-                if (newPass.length < 4) {
-                    setError('รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 4 ตัวอักษร');
-                    return;
-                }
+                if (newPass !== confirmPass) return setError('รหัสผ่านใหม่ไม่ตรงกัน กรุณาพิมพ์ให้เหมือนกันทั้ง 2 ช่อง');
+                if (newPass.length < 4) return setError('รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 4 ตัวอักษร');
 
                 setIsLoading(true);
                 setTimeout(() => {
                     const users = settings.users || [];
                     const userIndex = users.findIndex(u => u.username.toLowerCase() === resetUsername.trim().toLowerCase() && u.role === 'admin');
-                    
                     if (userIndex === -1) {
                         setError('ไม่พบชื่อผู้ใช้งานระดับ Admin นี้ในระบบ');
                         setIsLoading(false);
                         return;
                     }
-
-                    // สร้าง Users Array ใหม่ และเขียนรหัสผ่านใหม่ทับลงไป
                     const newUsers = [...users];
                     newUsers[userIndex].password = newPass;
                     
                     if(onUpdateSettings) {
                         onUpdateSettings({...settings, users: newUsers});
                         showNotification('เปลี่ยนรหัสผ่านผู้ดูแลระบบสำเร็จ! กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่');
-                        
-                        // กลับหน้า Login ปกติ
                         setIsResetMode(false);
                         setUsername(resetUsername);
                         setPassword('');
@@ -602,116 +663,56 @@
 
             return (
                 <div className="fixed inset-0 z-[200] flex min-h-screen bg-white">
-                    {/* Left Side - Image Background */}
                     <div className="hidden lg:flex lg:w-1/2 relative bg-gray-900 items-center justify-center overflow-hidden">
                         <img src={settings.bannerUrl} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-40 scale-105" />
                         <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/40 to-transparent"></div>
                         <div className="relative z-10 px-16 text-white max-w-2xl animate-fade-in">
-                            <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-8 border border-white/20">
-                                <ShieldCheck className="w-10 h-10 text-white" />
-                            </div>
+                            <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-8 border border-white/20"><ShieldCheck className="w-10 h-10 text-white" /></div>
                             <h2 className="text-4xl font-bold mb-4 leading-tight">{settings.templeName}</h2>
                             <p className="text-lg text-gray-300 font-light mb-8">ระบบจัดการข้อมูลการบริจาคและออกใบอนุโมทนาบัตรอิเล็กทรอนิกส์ สงวนสิทธิ์การเข้าใช้งานเฉพาะเจ้าหน้าที่ที่ได้รับมอบหมายเท่านั้น</p>
-                            <div className="flex items-center gap-4 text-sm text-gray-400">
-                                <Lock className="w-4 h-4" /> ระบบรักษาความปลอดภัยข้อมูล
-                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-400"><Lock className="w-4 h-4" /> ระบบรักษาความปลอดภัยข้อมูล</div>
                         </div>
                     </div>
-
-                    {/* Right Side - Forms */}
                     <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 relative bg-gray-50/50">
-                        <button onClick={onClose} className="absolute top-6 right-6 sm:top-8 sm:right-8 text-gray-400 hover:text-gray-600 transition flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 hover:shadow">
-                            <X className="w-4 h-4" /> <span className="text-sm font-medium">ปิดหน้าต่าง</span>
-                        </button>
-
+                        <button onClick={onClose} className="absolute top-6 right-6 sm:top-8 sm:right-8 text-gray-400 hover:text-gray-600 transition flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 hover:shadow"><X className="w-4 h-4" /> <span className="text-sm font-medium">ปิดหน้าต่าง</span></button>
                         <div className="w-full max-w-md animate-scale-up">
-                            
                             {!isResetMode ? (
-                                // --- หน้าต่าง Login ปกติ ---
                                 <>
-                                    <div className="text-center mb-8">
-                                        <div className={`w-20 h-20 bg-${theme}-100 text-${theme}-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-white`}>
-                                            <User className="w-10 h-10" />
-                                        </div>
-                                        <h1 className="text-3xl font-bold text-gray-900 mb-2">เข้าสู่ระบบ</h1>
-                                        <p className="text-gray-500">กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน</p>
-                                    </div>
-
+                                    <div className="text-center mb-8"><div className={`w-20 h-20 bg-${theme}-100 text-${theme}-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-white`}><User className="w-10 h-10" /></div><h1 className="text-3xl font-bold text-gray-900 mb-2">เข้าสู่ระบบ</h1><p className="text-gray-500">กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน</p></div>
                                     <form onSubmit={handleLoginSubmit} className="space-y-5 bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-2">ชื่อผู้ใช้งาน (Username)</label>
                                             <div className="relative group">
-                                                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${username ? `text-${theme}-500` : 'text-gray-400'}`}>
-                                                    <User className="h-5 w-5" />
-                                                </div>
+                                                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${username ? `text-${theme}-500` : 'text-gray-400'}`}><User className="h-5 w-5" /></div>
                                                 <input type="text" className={`w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-${theme}-500 focus:bg-white focus:border-transparent transition-all text-lg`} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin หรือ staff" autoFocus />
                                             </div>
                                         </div>
-
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-2">รหัสผ่าน (Password)</label>
                                             <div className="relative group">
-                                                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${password ? `text-${theme}-500` : 'text-gray-400'}`}>
-                                                    <Key className="h-5 w-5" />
-                                                </div>
+                                                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors ${password ? `text-${theme}-500` : 'text-gray-400'}`}><Key className="h-5 w-5" /></div>
                                                 <input type="password" className={`w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-${theme}-500 focus:bg-white focus:border-transparent transition-all text-lg tracking-widest`} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
                                             </div>
-                                            {error && (
-                                                <div className="bg-red-50 text-red-600 text-sm mt-4 p-3 rounded-lg flex items-center animate-fade-in border border-red-100">
-                                                    <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0"/> {error}
-                                                </div>
-                                            )}
+                                            {error && (<div className="bg-red-50 text-red-600 text-sm mt-4 p-3 rounded-lg flex items-center animate-fade-in border border-red-100"><AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0"/> {error}</div>)}
                                         </div>
-
                                         <button type="submit" disabled={isLoading || !password || !username} className={`w-full bg-${theme}-600 hover:bg-${theme}-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-xl transition-all flex justify-center items-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 mt-2`}>
                                             {isLoading ? <><Loader className="w-5 h-5 animate-spin mr-2" /> กำลังตรวจสอบข้อมูล...</> : <><LogIn className="w-5 h-5 mr-2" /> ยืนยันการเข้าสู่ระบบ</>}
                                         </button>
-
-                                        <button type="button" onClick={() => { setIsResetMode(true); setError(''); }} className={`w-full text-center text-sm font-medium text-${theme}-600 hover:text-${theme}-800 pt-2 transition-colors`}>
-                                            ลืมรหัสผ่าน? (สำหรับผู้ดูแลระบบ)
-                                        </button>
+                                        <button type="button" onClick={() => { setIsResetMode(true); setError(''); }} className={`w-full text-center text-sm font-medium text-${theme}-600 hover:text-${theme}-800 pt-2 transition-colors`}>ลืมรหัสผ่าน? (สำหรับผู้ดูแลระบบ)</button>
                                     </form>
                                 </>
                             ) : (
-                                // --- หน้าต่าง Reset Password สำหรับ Admin ---
                                 <>
-                                    <div className="text-center mb-8">
-                                        <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-white">
-                                            <ShieldCheck className="w-10 h-10" />
-                                        </div>
-                                        <h1 className="text-2xl font-bold text-gray-900 mb-2">รีเซ็ตรหัสผ่าน (Admin)</h1>
-                                        <p className="text-gray-500 text-sm">กรุณากรอก Username ของผู้ดูแลระบบ<br/>เพื่อตั้งรหัสผ่านใหม่ทันที</p>
-                                    </div>
-
+                                    <div className="text-center mb-8"><div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-white"><ShieldCheck className="w-10 h-10" /></div><h1 className="text-2xl font-bold text-gray-900 mb-2">รีเซ็ตรหัสผ่าน (Admin)</h1><p className="text-gray-500 text-sm">กรุณากรอก Username ของผู้ดูแลระบบ<br/>เพื่อตั้งรหัสผ่านใหม่ทันที</p></div>
                                     <form onSubmit={handleResetSubmit} className="space-y-4 bg-white p-8 rounded-3xl shadow-xl border border-red-100">
-                                        <div>
-                                            <label className="block text-sm font-bold text-gray-700 mb-1">ชื่อผู้ใช้งาน Admin (Username)</label>
-                                            <input type="text" required className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" value={resetUsername} onChange={(e) => setResetUsername(e.target.value)} placeholder="เช่น admin" autoFocus />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-bold text-gray-700 mb-1">ตั้งรหัสผ่านใหม่</label>
-                                            <input type="password" required className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 tracking-widest" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="••••••••" />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-bold text-gray-700 mb-1">ยืนยันรหัสผ่านใหม่อีกครั้ง</label>
-                                            <input type="password" required className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 tracking-widest" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)} placeholder="••••••••" />
-                                        </div>
-
-                                        {error && (
-                                            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center animate-fade-in border border-red-100">
-                                                <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0"/> {error}
-                                            </div>
-                                        )}
-
+                                        <div><label className="block text-sm font-bold text-gray-700 mb-1">ชื่อผู้ใช้งาน Admin (Username)</label><input type="text" required className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" value={resetUsername} onChange={(e) => setResetUsername(e.target.value)} placeholder="เช่น admin" autoFocus /></div>
+                                        <div><label className="block text-sm font-bold text-gray-700 mb-1">ตั้งรหัสผ่านใหม่</label><input type="password" required className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 tracking-widest" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="••••••••" /></div>
+                                        <div><label className="block text-sm font-bold text-gray-700 mb-1">ยืนยันรหัสผ่านใหม่อีกครั้ง</label><input type="password" required className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 tracking-widest" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)} placeholder="••••••••" /></div>
+                                        {error && (<div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center animate-fade-in border border-red-100"><AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0"/> {error}</div>)}
                                         <button type="submit" disabled={isLoading || !newPass || !confirmPass || !resetUsername} className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg mt-4">
                                             {isLoading ? <><Loader className="w-5 h-5 animate-spin inline mr-2" /> กำลังบันทึก...</> : 'บันทึกรหัสผ่านใหม่'}
                                         </button>
-
-                                        <button type="button" onClick={() => { setIsResetMode(false); setError(''); }} className="w-full text-center text-sm font-medium text-gray-500 hover:text-gray-800 pt-2 transition-colors">
-                                            ยกเลิก / กลับไปเข้าสู่ระบบ
-                                        </button>
+                                        <button type="button" onClick={() => { setIsResetMode(false); setError(''); }} className="w-full text-center text-sm font-medium text-gray-500 hover:text-gray-800 pt-2 transition-colors">ยกเลิก / กลับไปเข้าสู่ระบบ</button>
                                     </form>
                                 </>
                             )}
@@ -721,7 +722,6 @@
             );
         }
 
-        // ----- User Account Settings Panel (ส่วนตัวเจ้าหน้าที่) -----
         function UserSettingsPanel({ loggedInUser, setLoggedInUser, settings, onSave, showNotification }) {
             const [currentPassword, setCurrentPassword] = useState('');
             const [newPassword, setNewPassword] = useState('');
@@ -729,15 +729,9 @@
 
             const handleSubmit = (e) => {
                 e.preventDefault();
-                if (currentPassword !== loggedInUser.password) {
-                    return showNotification('รหัสผ่านปัจจุบันไม่ถูกต้อง', 'error');
-                }
-                if (newPassword !== confirmPassword) {
-                    return showNotification('รหัสผ่านใหม่ไม่ตรงกัน', 'error');
-                }
-                if (newPassword.length < 4) {
-                    return showNotification('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร', 'error');
-                }
+                if (currentPassword !== loggedInUser.password) return showNotification('รหัสผ่านปัจจุบันไม่ถูกต้อง', 'error');
+                if (newPassword !== confirmPassword) return showNotification('รหัสผ่านใหม่ไม่ตรงกัน', 'error');
+                if (newPassword.length < 4) return showNotification('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร', 'error');
 
                 const users = settings.users || [];
                 const userIndex = users.findIndex(u => u.id === loggedInUser.id);
@@ -747,50 +741,28 @@
                     onSave({...settings, users: newUsers});
                     setLoggedInUser(newUsers[userIndex]);
                     showNotification('เปลี่ยนรหัสผ่านส่วนตัวสำเร็จ');
-                    setCurrentPassword('');
-                    setNewPassword('');
-                    setConfirmPassword('');
+                    setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
                 }
             };
 
             return (
                 <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
-                    <h2 className="text-2xl font-bold flex items-center text-gray-800">
-                        <UserCog className="w-7 h-7 mr-2 text-blue-600" /> บัญชีของฉัน (My Account)
-                    </h2>
-                    
+                    <h2 className="text-2xl font-bold flex items-center text-gray-800"><UserCog className="w-7 h-7 mr-2 text-blue-600" /> บัญชีของฉัน (My Account)</h2>
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-200">
                         <h3 className="text-lg font-bold mb-4 border-b pb-2 text-gray-700">ข้อมูลผู้ใช้งานระบบ</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 bg-gray-50 p-4 rounded-xl border">
                             <div><label className="block text-xs text-gray-500 mb-1">ชื่อ - สกุล</label><div className="font-semibold text-lg">{loggedInUser.name}</div></div>
                             <div><label className="block text-xs text-gray-500 mb-1">ชื่อเข้าใช้งาน (Username)</label><div className="font-semibold text-lg">{loggedInUser.username}</div></div>
-                            <div className="sm:col-span-2">
-                                <label className="block text-xs text-gray-500 mb-1">ระดับสิทธิ์ (Role)</label>
-                                <div className={`inline-flex font-bold px-3 py-1 rounded-full text-sm ${loggedInUser.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                                    {loggedInUser.role === 'admin' ? 'ผู้ดูแลระบบสูงสุด (Admin)' : 'เจ้าหน้าที่ (Staff)'}
-                                </div>
-                            </div>
+                            <div className="sm:col-span-2"><label className="block text-xs text-gray-500 mb-1">ระดับสิทธิ์ (Role)</label><div className={`inline-flex font-bold px-3 py-1 rounded-full text-sm ${loggedInUser.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{loggedInUser.role === 'admin' ? 'ผู้ดูแลระบบสูงสุด (Admin)' : 'เจ้าหน้าที่ (Staff)'}</div></div>
                         </div>
-
                         <h3 className="text-lg font-bold mb-4 border-b pb-2 text-gray-700">เปลี่ยนรหัสผ่านส่วนตัว</h3>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">รหัสผ่านปัจจุบัน</label>
-                                <input type="password" required className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 tracking-widest" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••••" />
-                            </div>
+                            <div><label className="block text-sm font-medium mb-1">รหัสผ่านปัจจุบัน</label><input type="password" required className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 tracking-widest" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••••" /></div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">รหัสผ่านใหม่</label>
-                                    <input type="password" required className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 tracking-widest" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">ยืนยันรหัสผ่านใหม่</label>
-                                    <input type="password" required className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 tracking-widest" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" />
-                                </div>
+                                <div><label className="block text-sm font-medium mb-1">รหัสผ่านใหม่</label><input type="password" required className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 tracking-widest" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" /></div>
+                                <div><label className="block text-sm font-medium mb-1">ยืนยันรหัสผ่านใหม่</label><input type="password" required className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 tracking-widest" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" /></div>
                             </div>
-                            <button type="submit" disabled={!currentPassword || !newPassword || !confirmPassword} className="mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-6 py-3 rounded-lg font-bold flex items-center transition shadow-md">
-                                <Save className="w-5 h-5 mr-2" /> ยืนยันเปลี่ยนรหัสผ่าน
-                            </button>
+                            <button type="submit" disabled={!currentPassword || !newPassword || !confirmPassword} className="mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-6 py-3 rounded-lg font-bold flex items-center transition shadow-md"><Save className="w-5 h-5 mr-2" /> ยืนยันเปลี่ยนรหัสผ่าน</button>
                         </form>
                     </div>
                 </div>
@@ -819,10 +791,7 @@
                     <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 animate-scale-up max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6 pb-2 border-b"><h3 className="text-xl font-bold text-gray-900 flex items-center"><Pencil className="w-5 h-5 mr-2 text-orange-600" /> แก้ไขข้อมูลบริจาค</h3><button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="space-y-4">
-                            <div className="bg-gray-50 p-2 rounded text-sm text-gray-500 flex justify-between">
-                                <span>ID: {formData.id}</span>
-                                {formData.recordedBy && <span>ผู้บันทึก: {formData.recordedBy}</span>}
-                            </div>
+                            <div className="bg-gray-50 p-2 rounded text-sm text-gray-500 flex justify-between"><span>ID: {formData.id}</span>{formData.recordedBy && <span>ผู้บันทึก: {formData.recordedBy}</span>}</div>
                             <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-gray-500 mb-1">วัน-เวลา</label><input type="text" disabled className="w-full p-1 border border-gray-300 rounded text-sm bg-gray-100" value={dateStr} /></div></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">ชื่อ - สกุล</label><input type="text" className="w-full p-2 border border-gray-300 rounded outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">รายการที่บริจาค</label><input type="text" className="w-full p-2 border border-gray-300 rounded outline-none" value={formData.purpose} onChange={e => setFormData({...formData, purpose: e.target.value})} /></div>
@@ -846,27 +815,13 @@
         function ETaxModal({ onClose }) {
             return (
                 <div className="fixed inset-0 bg-white z-[200] flex flex-col animate-fade-in" onClick={e => e.stopPropagation()}>
-                    {/* Header ของ E-Tax Modal */}
                     <div className="flex justify-between items-center p-3 sm:p-4 border-b shadow-sm shrink-0 bg-gray-50">
-                        <h3 className="text-base sm:text-lg font-bold flex items-center text-green-600">
-                            <FileCheck className="w-5 h-5 mr-2" /> ขอลดหย่อนภาษี (E-Tax)
-                        </h3>
-                        <button onClick={onClose} className="p-2 sm:px-4 sm:py-2 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-700 rounded-full transition-colors flex items-center gap-1 text-sm font-medium">
-                            <span className="hidden sm:inline">ปิดหน้าต่าง</span> <X className="w-5 h-5" />
-                        </button>
+                        <h3 className="text-base sm:text-lg font-bold flex items-center text-green-600"><FileCheck className="w-5 h-5 mr-2" /> ขอลดหย่อนภาษี (E-Tax)</h3>
+                        <button onClick={onClose} className="p-2 sm:px-4 sm:py-2 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-700 rounded-full transition-colors flex items-center gap-1 text-sm font-medium"><span className="hidden sm:inline">ปิดหน้าต่าง</span> <X className="w-5 h-5" /></button>
                     </div>
-                    {/* ส่วนของ Iframe แบบเต็มจอ 100% */}
                     <div className="flex-grow relative w-full h-full bg-white overflow-hidden">
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-gray-400">
-                            <Loader className="w-8 h-8 animate-spin mb-2" />
-                            <span className="text-sm">กำลังเชื่อมต่อระบบ E-Tax...</span>
-                        </div>
-                        <iframe 
-                            src={E_TAX_URL} 
-                            className="absolute inset-0 w-full h-full border-0 z-10 bg-transparent" 
-                            title="E-Tax Donation" 
-                            allowFullScreen>
-                        </iframe>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-gray-400"><Loader className="w-8 h-8 animate-spin mb-2" /><span className="text-sm">กำลังเชื่อมต่อระบบ E-Tax...</span></div>
+                        <iframe src={E_TAX_URL} className="absolute inset-0 w-full h-full border-0 z-10 bg-transparent" title="E-Tax Donation" allowFullScreen></iframe>
                     </div>
                 </div>
             );
@@ -882,6 +837,7 @@
             const [editingId, setEditingId] = useState(null);
             const [isUploading, setIsUploading] = useState(false);
             const [newsToDelete, setNewsToDelete] = useState(null);
+            const [isGenerating, setIsGenerating] = useState(false);
 
             useEffect(() => {
                 const q = query(collection(db, 'news'));
@@ -919,6 +875,21 @@
             const handleDelete = async (id) => { try { await deleteDoc(doc(db, 'news', id)); showNotification("ลบข่าวสารเรียบร้อย"); } catch (error) { showNotification("ลบไม่สำเร็จ", "error"); } setNewsToDelete(null); };
             const startEdit = (news) => { setFormData({ title: news.title, content: news.content, date: news.date, images: news.images || (news.imageUrl ? [news.imageUrl] : []) }); setEditingId(news.id); setIsEditing(true); };
 
+            const handleGenerateNews = async () => {
+                if (!formData.title) return showNotification("กรุณาระบุหัวข้อข่าวก่อน", "error");
+                setIsGenerating(true);
+                try {
+                    const prompt = `เขียนเนื้อหาข่าวประชาสัมพันธ์สำหรับวัด ชื่อหัวข้อข่าว: "${formData.title}"\nให้เขียนเนื้อหาข่าวความยาวประมาณ 2-3 ย่อหน้า ภาษาไทย สุภาพ เป็นทางการ เหมาะสำหรับการประกาศของวัด เชิญชวนญาติโยมมาร่วมบุญหรือร่วมกิจกรรม (ไม่ต้องมีหัวข้อซ้ำ)`;
+                    const result = await callGemini(prompt);
+                    setFormData(prev => ({...prev, content: result}));
+                    showNotification("ร่างเนื้อหาด้วย AI สำเร็จ ✨");
+                } catch(e) {
+                    showNotification("เกิดข้อผิดพลาดในการสร้างเนื้อหา", "error");
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
             return (
                 <div className="space-y-6">
                     {newsToDelete && (
@@ -937,7 +908,36 @@
                     
                     <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold flex items-center text-gray-800"><Newspaper className="w-6 h-6 mr-2 text-blue-600" /> จัดการข่าวสารและกิจกรรม</h2>{!isEditing && (<button onClick={() => { setIsEditing(true); setFormData({ title: '', content: '', date: new Date().toISOString().split('T')[0], images: [] }); setEditingId(null); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"><Plus className="w-4 h-4 mr-2" /> เพิ่มข่าวใหม่</button>)}</div>
                     {isEditing ? (
-                        <div className="bg-white p-6 rounded-xl shadow border border-blue-100 animate-fade-in"><h3 className="text-lg font-bold mb-4">{editingId ? 'แก้ไขข่าวสาร' : 'เพิ่มข่าวสารใหม่'}</h3><form onSubmit={handleSubmit} className="space-y-4"><div><label className="block text-sm font-medium mb-1">หัวข้อข่าว *</label><input type="text" className="w-full p-2 border rounded" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required /></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-medium mb-1">วันที่กิจกรรม *</label><input type="date" className="w-full p-2 border rounded" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required /></div><div><label className="block text-sm font-medium mb-1">รูปภาพประกอบ (เลือกได้หลายรูป)</label><div className="flex gap-2 items-center"><label className="cursor-pointer bg-gray-100 px-4 py-2 rounded border hover:bg-gray-200 text-sm flex items-center">{isUploading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <UploadCloud className="w-4 h-4 mr-2" />}{isUploading ? 'กำลังประมวลผล...' : 'เพิ่มรูปภาพ'}<input type="file" className="hidden" accept="image/*" multiple onChange={handleImageUpload} disabled={isUploading} /></label><span className="text-xs text-gray-500">{formData.images?.length || 0} รูป</span></div></div></div>{formData.images && formData.images.length > 0 && (<div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">{formData.images.map((img, idx) => (<div key={idx} className="relative aspect-square bg-gray-100 rounded border overflow-hidden group"><img src={img} className="w-full h-full object-cover" alt={`preview ${idx}`} /><button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>{idx === 0 && <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">ภาพปก</span>}</div>))}</div>)}<div><label className="block text-sm font-medium mb-1">เนื้อหาข่าว / รายละเอียด</label><textarea rows="5" className="w-full p-2 border rounded" value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})}></textarea></div><div className="flex gap-2 pt-2"><button type="button" onClick={() => setIsEditing(false)} className="px-4 py-2 border rounded hover:bg-gray-50">ยกเลิก</button><button type="submit" disabled={isUploading} className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>บันทึก</button></div></form></div>
+                        <div className="bg-white p-6 rounded-xl shadow border border-blue-100 animate-fade-in">
+                            <h3 className="text-lg font-bold mb-4">{editingId ? 'แก้ไขข่าวสาร' : 'เพิ่มข่าวสารใหม่'}</h3>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div><label className="block text-sm font-medium mb-1">หัวข้อข่าว *</label><input type="text" className="w-full p-2 border rounded" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required /></div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label className="block text-sm font-medium mb-1">วันที่กิจกรรม *</label><input type="date" className="w-full p-2 border rounded" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required /></div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">รูปภาพประกอบ (เลือกได้หลายรูป)</label>
+                                        <div className="flex gap-2 items-center">
+                                            <label className="cursor-pointer bg-gray-100 px-4 py-2 rounded border hover:bg-gray-200 text-sm flex items-center">{isUploading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <UploadCloud className="w-4 h-4 mr-2" />}{isUploading ? 'กำลังประมวลผล...' : 'เพิ่มรูปภาพ'}
+                                                <input type="file" className="hidden" accept="image/*" multiple onChange={handleImageUpload} disabled={isUploading} />
+                                            </label>
+                                            <span className="text-xs text-gray-500">{formData.images?.length || 0} รูป</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {formData.images && formData.images.length > 0 && (<div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">{formData.images.map((img, idx) => (<div key={idx} className="relative aspect-square bg-gray-100 rounded border overflow-hidden group"><img src={img} className="w-full h-full object-cover" alt={`preview ${idx}`} /><button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>{idx === 0 && <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">ภาพปก</span>}</div>))}</div>)}
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="block text-sm font-medium">เนื้อหาข่าว / รายละเอียด</label>
+                                        <button type="button" onClick={handleGenerateNews} disabled={isGenerating || !formData.title} className="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded flex items-center transition disabled:opacity-50 font-medium">
+                                            {isGenerating ? <Loader className="w-3 h-3 animate-spin mr-1"/> : <Sparkles className="w-3 h-3 mr-1"/>}
+                                            ร่างเนื้อหาอัตโนมัติ ✨
+                                        </button>
+                                    </div>
+                                    <textarea rows="5" className="w-full p-2 border rounded" value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})}></textarea>
+                                </div>
+                                <div className="flex gap-2 pt-2"><button type="button" onClick={() => setIsEditing(false)} className="px-4 py-2 border rounded hover:bg-gray-50">ยกเลิก</button><button type="submit" disabled={isUploading || isGenerating} className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${(isUploading || isGenerating) ? 'opacity-50 cursor-not-allowed' : ''}`}>บันทึก</button></div>
+                            </form>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{newsList.map(news => { const coverImage = (news.images && news.images.length > 0) ? news.images[0] : news.imageUrl; return (<div key={news.id} className="bg-white rounded-xl shadow overflow-hidden group border hover:border-blue-300 transition"><div className="h-48 bg-gray-200 relative overflow-hidden">{coverImage ? (<img src={coverImage} alt={news.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />) : (<div className="flex items-center justify-center h-full text-gray-400"><ImageIcon className="w-10 h-10" /></div>)}{news.images && news.images.length > 1 && (<div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-md">+{news.images.length - 1} รูป</div>)}<div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition"><button onClick={() => startEdit(news)} className="bg-white p-2 rounded-full shadow hover:text-blue-600"><Edit className="w-4 h-4" /></button><button onClick={() => setNewsToDelete(news)} className="bg-white p-2 rounded-full shadow hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></div><div className="p-4"><div className="text-xs text-gray-500 mb-1">{new Date(news.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</div><h3 className="font-bold text-lg mb-2 line-clamp-2">{news.title}</h3><p className="text-gray-600 text-sm line-clamp-3">{news.content}</p></div></div>); })}{newsList.length === 0 && (<div className="col-span-full text-center py-10 text-gray-500 bg-gray-50 rounded-xl border border-dashed">ยังไม่มีข่าวสาร</div>)}</div>
                     )}
@@ -951,6 +951,7 @@
             const [generalNote, setGeneralNote] = useState('');
             const [slipImage, setSlipImage] = useState(null); 
             const [isUploading, setIsUploading] = useState(false);
+            const [isGeneratingBlessing, setIsGeneratingBlessing] = useState(false);
             const [showThankYou, setShowThankYou] = useState(false);
             const [selectedItems, setSelectedItems] = useState({});
             const [showETaxModal, setShowETaxModal] = useState(false);
@@ -1001,6 +1002,22 @@
                     setIsUploading(false);
                 }
             };
+            
+            const handleGenerateBlessing = async () => {
+                if (!name) return showNotification("กรุณาระบุชื่อผู้บริจาคก่อน", "error");
+                setIsGeneratingBlessing(true);
+                try {
+                    const activePurposes = donationTypes.filter(t => selectedItems[t.id]?.checked).map(t => t.name).join(', ') || 'บำรุงวัด';
+                    const prompt = `เขียนคำอวยพรสั้นๆ 1-2 ประโยค (ไม่เกิน 150 ตัวอักษร) สำหรับผู้ที่มาทำบุญที่วัด\nชื่อผู้บริจาค: ${name}\nรายการที่ทำบุญ: ${activePurposes}\nจำนวนเงิน: ${totalAmount} บาท\nขอภาษาไทยที่ไพเราะ เป็นสิริมงคล (ไม่ต้องมีคำขึ้นต้นเช่น "คำอวยพร:")`;
+                    const result = await callGemini(prompt);
+                    setGeneralNote(result.trim().replace(/^["']|["']$/g, ''));
+                    showNotification("สร้างคำอวยพรด้วย AI สำเร็จ ✨");
+                } catch(e) {
+                    showNotification("สร้างคำอวยพรไม่สำเร็จ", "error");
+                } finally {
+                    setIsGeneratingBlessing(false);
+                }
+            };
 
             const handleSubmit = (e) => {
                 e.preventDefault();
@@ -1035,7 +1052,7 @@
                     generalNote, 
                     status: userRole === 'donor' ? 'pending' : 'approved', 
                     source: userRole === 'donor' ? 'self' : 'staff', 
-                    recordedBy: loggedInUser ? loggedInUser.name : 'ผู้บริจาค (ออนไลน์)', // เก็บชื่อผู้บันทึก
+                    recordedBy: loggedInUser ? loggedInUser.name : 'ผู้บริจาค (ออนไลน์)',
                     announced: false, 
                     roongTaanDate: isRoongTaanChecked ? selectedItems['roong_taan'].date : null, 
                     roongTaanNote: isRoongTaanChecked ? selectedItems['roong_taan'].note : null, 
@@ -1130,8 +1147,17 @@
                                 </div>
                             ) : (<div className="flex flex-col items-center justify-center text-gray-500 py-4"><ShoppingBag className="w-12 h-12 mb-2 opacity-30" /><p className="text-sm">กรุณานำเงินสดมาบริจาคที่จุดรับบริจาค</p></div>)}
                         </div>
-                        <div><label className="block text-sm font-medium text-gray-700 mb-1">หมายเหตุเพิ่มเติม</label><textarea rows="2" className="w-full p-2 border border-gray-300 rounded outline-none" value={generalNote} onChange={e => setGeneralNote(e.target.value)} placeholder="ข้อความเพิ่มเติม..."></textarea></div>
-                        <button type="submit" disabled={isUploading} className={`w-full text-white font-bold py-3 px-4 rounded hover:bg-${theme}-700 transition shadow-lg flex justify-center items-center text-lg ${isUploading ? 'bg-gray-400' : `bg-${theme}-600`}`}>{isUploading ? 'กำลังประมวลผลรูป...' : <><CheckCircle className="w-6 h-6 mr-2 shrink-0" /> ยืนยันการบริจาค</>}</button>
+                        <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="block text-sm font-medium text-gray-700">หมายเหตุเพิ่มเติม / คำอวยพร</label>
+                                <button type="button" onClick={handleGenerateBlessing} disabled={isGeneratingBlessing || !name} className="text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 px-2 py-1 rounded flex items-center transition disabled:opacity-50 font-medium border border-orange-200">
+                                    {isGeneratingBlessing ? <Loader className="w-3 h-3 animate-spin mr-1"/> : <Sparkles className="w-3 h-3 mr-1"/>}
+                                    สร้างคำอวยพร ✨
+                                </button>
+                            </div>
+                            <textarea rows="2" className="w-full p-2 border border-gray-300 rounded outline-none" value={generalNote} onChange={e => setGeneralNote(e.target.value)} placeholder="ข้อความเพิ่มเติม..."></textarea>
+                        </div>
+                        <button type="submit" disabled={isUploading || isGeneratingBlessing} className={`w-full text-white font-bold py-3 px-4 rounded hover:bg-${theme}-700 transition shadow-lg flex justify-center items-center text-lg ${(isUploading || isGeneratingBlessing) ? 'bg-gray-400' : `bg-${theme}-600`}`}>{(isUploading || isGeneratingBlessing) ? 'กำลังประมวลผล...' : <><CheckCircle className="w-6 h-6 mr-2 shrink-0" /> ยืนยันการบริจาค</>}</button>
                     </form>
                 </div>
             );
@@ -1159,6 +1185,10 @@
             const [searchTerm, setSearchTerm] = useState('');
             const [currentPage, setCurrentPage] = useState(1);
             const [itemsPerPage, setItemsPerPage] = useState(10);
+
+            // AI Summary States
+            const [aiSummary, setAiSummary] = useState('');
+            const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
             // Apply Filters and Search
             const filteredData = donations.filter(d => {
@@ -1273,6 +1303,30 @@
                 ? new Date(filterDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
                 : "ข้อมูลทั้งหมด";
 
+            // ฟังก์ชันสร้างสรุปรายงานด้วย AI
+            const handleGenerateAiSummary = async () => {
+                if (filteredData.length === 0) return showNotification("ไม่มีข้อมูลให้สรุป", "error");
+                setIsGeneratingAi(true);
+                try {
+                    const methodCounts = filteredData.reduce((acc, d) => {
+                        if (d.status === 'approved') {
+                            acc[d.method] = (acc[d.method] || 0) + 1;
+                        }
+                        return acc;
+                    }, {});
+                    const topMethod = Object.keys(methodCounts).sort((a,b) => methodCounts[b] - methodCounts[a])[0];
+                    
+                    const prompt = `ในฐานะผู้เชี่ยวชาญและผู้ช่วยของวัด ${settings.templeName} ช่วยสรุปรายงานยอดบริจาคต่อไปนี้ให้คณะกรรมการวัดอ่าน:\n- ช่วงเวลา: ${printDateDisplay}\n- ยอดรวมสุทธิ (อนุมัติแล้ว): ${totalAmount.toLocaleString()} บาท\n- จำนวนรายการทั้งหมด: ${filteredData.length} รายการ\n- รายการที่รอตรวจสอบ: ${filteredData.filter(d=>d.status==='pending').length} รายการ\n- ช่องทางที่คนนิยมบริจาคมากที่สุด: ${topMethod || 'ไม่ระบุ'}\n\nกรุณาเขียนสรุปเชิงวิเคราะห์สั้นๆ 1-2 ย่อหน้า ภาษาเป็นทางการ สุภาพ และให้กำลังใจทีมงาน`;
+                    const result = await callGemini(prompt);
+                    setAiSummary(result.replace(/^["']|["']$/g, ''));
+                    showNotification("สร้างสรุปรายงานด้วย AI สำเร็จ ✨");
+                } catch(e) {
+                    showNotification("สร้างสรุปรายงานไม่สำเร็จ กรุณาลองใหม่", "error");
+                } finally {
+                    setIsGeneratingAi(false);
+                }
+            };
+
             return (
                 <div className="space-y-6 relative">
                     {/* Modal ชั้นต่างๆ */}
@@ -1377,6 +1431,26 @@
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 text-center col-span-2 md:col-span-1"><span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">ยอดรวม (ตามตัวกรอง)</span><span className="text-2xl sm:text-3xl font-bold text-green-600">{totalAmount.toLocaleString()} ฿</span></div>
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 text-center"><span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">จำนวนรายการ</span><span className="text-2xl sm:text-3xl font-bold text-blue-600">{filteredData.length}</span></div>
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 text-center"><span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">รอตรวจ</span><span className="text-2xl sm:text-3xl font-bold text-orange-500">{filteredData.filter(d=>d.status==='pending').length}</span></div>
+                    </div>
+
+                    {/* AI Summary Section (Screen Only) */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-5 rounded-xl shadow-sm border border-indigo-100 mb-6 no-print">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold flex items-center text-indigo-800"><Sparkles className="w-5 h-5 mr-2" /> วิเคราะห์และสรุปยอดด้วย AI</h3>
+                            <button onClick={handleGenerateAiSummary} disabled={isGeneratingAi || filteredData.length === 0} className="text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-4 py-2 rounded-lg font-medium flex items-center transition shadow-sm">
+                                {isGeneratingAi ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Sparkles className="w-4 h-4 mr-2"/>}
+                                {isGeneratingAi ? 'กำลังวิเคราะห์...' : 'สร้างบทสรุป ✨'}
+                            </button>
+                        </div>
+                        {aiSummary ? (
+                            <div className="bg-white p-5 rounded-lg border border-indigo-100 text-gray-700 leading-relaxed whitespace-pre-wrap text-sm sm:text-base shadow-inner">
+                                {aiSummary}
+                            </div>
+                        ) : (
+                            <div className="text-center py-6 text-indigo-300 bg-white/50 rounded-lg border border-dashed border-indigo-200">
+                                <p className="text-sm">คลิกปุ่ม "สร้างบทสรุป" เพื่อให้ AI ช่วยสรุปรายงานภาพรวมให้คุณแบบอัตโนมัติ</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* DataTables Display (Screen Only) */}
@@ -1671,15 +1745,22 @@
             const [clearError, setClearError] = useState(''); 
             const [activeSection, setActiveSection] = useState('general');
             const [isUploading, setIsUploading] = useState(false); 
+            const [isGeneratingAbout, setIsGeneratingAbout] = useState(false);
+            const [isGeneratingThankYou, setIsGeneratingThankYou] = useState(false);
 
             useEffect(() => { 
                 let newConfig = { ...settings };
-                // Update structure to support users if using old passwords config
                 if (!newConfig.users || newConfig.users.length === 0) {
                     newConfig.users = [
                         { id: '1', username: 'admin', password: settings.passwords?.admin || 'admin104', role: 'admin', name: 'Admin หลัก', permissions: ['all'] },
                         { id: '2', username: 'staff', password: settings.passwords?.staff || '104', role: 'staff', name: 'Staff รับบริจาค', permissions: ['donate', 'dashboard'] }
                     ];
+                }
+                if (!newConfig.lineNotify?.messageTemplate) {
+                    newConfig.lineNotify = {
+                        ...newConfig.lineNotify,
+                        messageTemplate: DEFAULT_SETTINGS.lineNotify.messageTemplate
+                    };
                 }
                 setConfig(newConfig); 
             }, [settings]);
@@ -1689,7 +1770,6 @@
             const handleRemoveDonationType = (index) => { const newTypes = [...(config.donationTypes || [])]; newTypes.splice(index, 1); setConfig({...config, donationTypes: newTypes}); };
             const handleUpdateDonationType = (index, field, value) => { const newTypes = [...(config.donationTypes || [])]; newTypes[index] = { ...newTypes[index], [field]: value }; setConfig({...config, donationTypes: newTypes}); };
             const handleClearDataSubmit = () => { 
-                // Check if any admin has the submitted password
                 const adminExists = (config.users || []).find(u => u.role === 'admin' && u.password === confirmClear);
                 if (adminExists) { 
                     onClearData(); 
@@ -1700,9 +1780,23 @@
                     setClearError('รหัสผ่าน Admin ไม่ถูกต้อง'); 
                 } 
             };
+
+            const handleInsertLineVariable = (variable) => {
+                const textarea = document.getElementById('line-template-input');
+                if (textarea) {
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const currentTemplate = config.lineNotify?.messageTemplate || '';
+                    const newText = currentTemplate.substring(0, start) + variable + currentTemplate.substring(end);
+                    setConfig({ ...config, lineNotify: { ...config.lineNotify, messageTemplate: newText } });
+                    setTimeout(() => { textarea.focus(); textarea.setSelectionRange(start + variable.length, start + variable.length); }, 0);
+                } else {
+                    setConfig({ ...config, lineNotify: { ...config.lineNotify, messageTemplate: (config.lineNotify?.messageTemplate || '') + variable } });
+                }
+            };
+
             const themeColors = [ { id: 'orange', name: 'ส้ม', class: 'bg-orange-500' }, { id: 'yellow', name: 'เหลือง', class: 'bg-yellow-500' }, { id: 'red', name: 'แดง', class: 'bg-red-600' }, { id: 'emerald', name: 'เขียว', class: 'bg-emerald-600' }, { id: 'blue', name: 'น้ำเงิน', class: 'bg-blue-600' }, { id: 'stone', name: 'ขาว/เทา', class: 'bg-stone-500' }, ];
 
-            // Function for About Image Upload
             const handleAboutImageUpload = async (e) => {
                 const file = e.target.files[0];
                 if (file) {
@@ -1715,7 +1809,6 @@
                 }
             };
 
-            // Function for Receipt Images Upload
             const handleReceiptImageUpload = async (e, field) => {
                 const file = e.target.files[0];
                 if (file) {
@@ -1728,7 +1821,6 @@
                 }
             };
 
-            // Functions for User Management
             const handleAddUser = () => {
                 const newUser = { id: `u_${Date.now()}`, username: '', password: '', name: '', role: 'staff', permissions: ['donate', 'dashboard'] };
                 setConfig({ ...config, users: [...(config.users || []), newUser] });
@@ -1742,6 +1834,33 @@
                 const newUsers = [...(config.users || [])];
                 newUsers.splice(index, 1);
                 setConfig({ ...config, users: newUsers });
+            };
+
+            // AI Functions for Settings
+            const handleGenerateAboutAI = async () => {
+                setIsGeneratingAbout(true);
+                try {
+                    const prompt = `เขียนประวัติและข้อมูลแนะนำวัด ชื่อวัด "${config.templeName || 'วัดไชยามาตย์'}" สำหรับแสดงบนเว็บไซต์ ความยาวประมาณ 2 ย่อหน้า ภาษาสวยงาม เป็นทางการ น่าเลื่อมใส และเชิญชวนให้คนมาทำบุญ`;
+                    const result = await callGemini(prompt);
+                    setConfig(prev => ({...prev, about: { ...prev.about, content: result.replace(/^["']|["']$/g, '').trim() }}));
+                } catch(e) {
+                    alert("เกิดข้อผิดพลาดในการสร้างเนื้อหาด้วย AI");
+                } finally {
+                    setIsGeneratingAbout(false);
+                }
+            };
+
+            const handleGenerateThankYouAI = async () => {
+                setIsGeneratingThankYou(true);
+                try {
+                    const prompt = `เขียนข้อความขอบคุณ (อนุโมทนาบุญ) สำหรับผู้ที่มาร่วมบริจาคที่วัด "${config.templeName || 'วัดไชยามาตย์'}" ความยาว 2-3 ประโยค ภาษาไพเราะ เป็นทางการและเป็นสิริมงคล`;
+                    const result = await callGemini(prompt);
+                    setConfig(prev => ({...prev, messages: { ...prev.messages, thankYou: result.replace(/^["']|["']$/g, '').trim() }}));
+                } catch(e) {
+                    alert("เกิดข้อผิดพลาดในการสร้างเนื้อหาด้วย AI");
+                } finally {
+                    setIsGeneratingThankYou(false);
+                }
             };
 
             return (
@@ -1782,7 +1901,12 @@
                                             <input type="text" className="w-full p-2 border rounded text-orange-600 font-bold" value={config.about?.highlightWord || ''} onChange={e => setConfig({...config, about: { ...config.about, highlightWord: e.target.value }})} />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium mb-1">เนื้อหา / รายละเอียด</label>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="block text-sm font-medium">เนื้อหา / รายละเอียด</label>
+                                                <button type="button" onClick={handleGenerateAboutAI} disabled={isGeneratingAbout} className="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded flex items-center transition disabled:opacity-50 font-medium border border-indigo-200">
+                                                    {isGeneratingAbout ? <Loader className="w-3 h-3 animate-spin mr-1"/> : <Sparkles className="w-3 h-3 mr-1"/>} ร่างด้วย AI ✨
+                                                </button>
+                                            </div>
                                             <textarea rows="6" className="w-full p-2 border rounded" value={config.about?.content || ''} onChange={e => setConfig({...config, about: { ...config.about, content: e.target.value }})}></textarea>
                                         </div>
                                     </div>
@@ -1863,7 +1987,7 @@
                                                     <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
                                                 ) : config.receipt?.signatureUrl ? (
                                                     <div className="relative pointer-events-none">
-                                                        <img src={config.receipt.signatureUrl} alt="Signature" className="max-h-16 mx-auto object-contain" style={{ mixBlendMode: 'multiply' }} />
+                                                        <img src={config.receipt.signatureUrl} className="max-h-16 mx-auto object-contain" style={{ mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
                                                         <div className="mt-2 text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูปลายเซ็น</div>
                                                     </div>
                                                 ) : (
@@ -1887,6 +2011,88 @@
                                                 )}
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* DONATION Settings Section */}
+                        {activeSection === 'donation' && (
+                            <div className="space-y-6 animate-fade-in">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4 flex items-center"><User className="w-5 h-5 mr-2 text-orange-600" /> บัญชีรับเงิน</h3>
+                                        <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                            <div><label className="text-xs text-gray-500 font-medium mb-1 block">ธนาคาร</label><input type="text" className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500" value={config.bankInfo?.bankName || ''} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, bankName: e.target.value}})} /></div>
+                                            <div><label className="text-xs text-gray-500 font-medium mb-1 block">ชื่อบัญชี</label><input type="text" className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500" value={config.bankInfo?.accountName || ''} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, accountName: e.target.value}})} /></div>
+                                            <div><label className="text-xs text-gray-500 font-medium mb-1 block">เลขบัญชี</label><input type="text" className="w-full p-2 border rounded-lg font-mono text-lg outline-none focus:ring-2 focus:ring-orange-500" value={config.bankInfo?.accountNumber || ''} onChange={e => setConfig({...config, bankInfo: {...config.bankInfo, accountNumber: e.target.value}})} /></div>
+                                            <div><label className="text-xs text-gray-500 font-medium mb-1 block">ลิงค์รูป QR Code</label><input type="text" className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500" value={config.qrCodeUrl || ''} onChange={e => setConfig({...config, qrCodeUrl: e.target.value})} /></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4 flex items-center"><Settings className="w-5 h-5 mr-2 text-orange-600" /> ตั้งค่าเงื่อนไข</h3>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between p-4 border rounded-xl bg-gray-50">
+                                                <div>
+                                                    <div className="font-bold text-sm">จำเป็นต้องแนบสลิปโอนเงิน</div>
+                                                    <div className="text-xs text-gray-500">บังคับให้อัปโหลดรูปสลิปเมื่อโอนเงิน</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" className="sr-only peer" checked={config.requireSlip !== false} onChange={e => setConfig({...config, requireSlip: e.target.checked})} />
+                                                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <label className="block text-sm font-medium">ข้อความขอบคุณ (อนุโมทนา)</label>
+                                                    <button type="button" onClick={handleGenerateThankYouAI} disabled={isGeneratingThankYou} className="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded flex items-center transition disabled:opacity-50 font-medium border border-indigo-200">
+                                                        {isGeneratingThankYou ? <Loader className="w-3 h-3 animate-spin mr-1"/> : <Sparkles className="w-3 h-3 mr-1"/>} ร่างด้วย AI ✨
+                                                    </button>
+                                                </div>
+                                                <textarea rows="4" className="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500" value={config.messages?.thankYou || ''} onChange={e => setConfig({...config, messages: {...config.messages, thankYou: e.target.value}})} placeholder="ข้อความที่จะแสดงเมื่อบันทึกสำเร็จ"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="pt-6 border-t mt-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-bold flex items-center"><ClipboardList className="w-5 h-5 mr-2 text-orange-600" /> รายการรับบริจาค</h3>
+                                        <button onClick={handleAddDonationType} className="text-sm bg-orange-50 text-orange-600 px-3 py-2 rounded-lg hover:bg-orange-100 flex items-center font-bold transition"><Plus className="w-4 h-4 mr-1"/> เพิ่มรายการใหม่</button>
+                                    </div>
+                                    <div className="overflow-x-auto bg-gray-50 rounded-xl border border-gray-200">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-gray-200/50 text-gray-600 font-medium">
+                                                <tr>
+                                                    <th className="p-3">ชื่อรายการ</th>
+                                                    <th className="p-3 text-center">มีจำนวน/ชิ้น?</th>
+                                                    <th className="p-3 text-right">ราคา/หน่วย</th>
+                                                    <th className="p-3 text-center">หน่วยนับ</th>
+                                                    <th className="p-3 text-center">สถานะ</th>
+                                                    <th className="p-3 text-center">ลบ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {(config.donationTypes || []).map((type, idx) => (
+                                                    <tr key={idx} className="bg-white hover:bg-orange-50/50 transition">
+                                                        <td className="p-3"><input type="text" className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500" value={type.name} onChange={e => handleUpdateDonationType(idx, 'name', e.target.value)} disabled={type.isSpecial} /></td>
+                                                        <td className="p-3 text-center"><input type="checkbox" className="w-4 h-4 text-orange-600 rounded" checked={type.hasQuantity} onChange={e => handleUpdateDonationType(idx, 'hasQuantity', e.target.checked)} disabled={type.isSpecial} /></td>
+                                                        <td className="p-3"><input type="number" className="w-full p-2 border rounded-lg text-right outline-none focus:ring-2 focus:ring-orange-500" value={type.price || 0} onChange={e => handleUpdateDonationType(idx, 'price', parseInt(e.target.value) || 0)} disabled={!type.hasQuantity && !type.isSpecial} /></td>
+                                                        <td className="p-3"><input type="text" className="w-full p-2 border rounded-lg text-center outline-none focus:ring-2 focus:ring-orange-500" value={type.unit || ''} onChange={e => handleUpdateDonationType(idx, 'unit', e.target.value)} disabled={!type.hasQuantity} placeholder="-" /></td>
+                                                        <td className="p-3 text-center">
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input type="checkbox" className="sr-only peer" checked={type.active !== false} onChange={e => handleUpdateDonationType(idx, 'active', e.target.checked)} />
+                                                                <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                                                            </label>
+                                                        </td>
+                                                        <td className="p-3 text-center">
+                                                            {!type.isSpecial && (
+                                                                <button onClick={() => handleRemoveDonationType(idx)} className="text-red-500 hover:text-red-700 p-2 rounded-lg bg-red-50 hover:bg-red-100 transition"><Trash2 className="w-4 h-4" /></button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -2046,6 +2252,29 @@
                                                 <label className="block text-sm font-medium mb-1">LINE Target IDs (ใส่ได้สูงสุด 500 ไอดี คั่นด้วยเครื่องหมาย ,)</label>
                                                 <textarea className="w-full p-2 border rounded font-mono text-sm outline-none focus:ring-2 focus:ring-green-500" rows="3" value={config.lineNotify?.targetIds || ''} onChange={e => setConfig({...config, lineNotify: {...config.lineNotify, targetIds: e.target.value}})} placeholder="C1234567890abcdef..., U0987654321fedcba..."></textarea>
                                                 <p className="text-xs text-gray-500 mt-1">วิธีหา Group ID: เชิญบอทเข้ากลุ่ม และใช้ API หรือ Webhook เพื่อดู ID ของกลุ่มที่มักขึ้นต้นด้วย 'C'</p>
+                                            </div>
+                                            <div className="pt-2 border-t">
+                                                <label className="block text-sm font-medium mb-1 mt-2">รูปแบบข้อความแจ้งเตือน (Message Template)</label>
+                                                <textarea 
+                                                    id="line-template-input"
+                                                    className="w-full p-2 border rounded font-mono text-sm outline-none focus:ring-2 focus:ring-green-500" 
+                                                    rows="8" 
+                                                    value={config.lineNotify?.messageTemplate || ''} 
+                                                    onChange={e => setConfig({...config, lineNotify: {...config.lineNotify, messageTemplate: e.target.value}})} 
+                                                    placeholder="ใส่รูปแบบข้อความที่ต้องการ..."
+                                                ></textarea>
+                                                <div className="mt-2 p-3 bg-gray-50 border rounded-lg">
+                                                    <p className="text-xs text-gray-500 mb-2 font-bold">คลิกปุ่มด้านล่างเพื่อแทรกตัวแปรลงในข้อความ:</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <button type="button" onClick={() => handleInsertLineVariable('{{name}}')} className="text-xs bg-green-100 text-green-800 px-2 py-1.5 rounded hover:bg-green-200 transition shadow-sm font-medium">+ ชื่อผู้บริจาค</button>
+                                                        <button type="button" onClick={() => handleInsertLineVariable('{{amount}}')} className="text-xs bg-green-100 text-green-800 px-2 py-1.5 rounded hover:bg-green-200 transition shadow-sm font-medium">+ จำนวนเงิน</button>
+                                                        <button type="button" onClick={() => handleInsertLineVariable('{{purpose}}')} className="text-xs bg-green-100 text-green-800 px-2 py-1.5 rounded hover:bg-green-200 transition shadow-sm font-medium">+ รายการบริจาค</button>
+                                                        <button type="button" onClick={() => handleInsertLineVariable('{{method}}')} className="text-xs bg-green-100 text-green-800 px-2 py-1.5 rounded hover:bg-green-200 transition shadow-sm font-medium">+ ช่องทาง</button>
+                                                        <button type="button" onClick={() => handleInsertLineVariable('{{note}}')} className="text-xs bg-green-100 text-green-800 px-2 py-1.5 rounded hover:bg-green-200 transition shadow-sm font-medium">+ หมายเหตุ</button>
+                                                        <button type="button" onClick={() => handleInsertLineVariable('{{date}}')} className="text-xs bg-gray-200 text-gray-800 px-2 py-1.5 rounded hover:bg-gray-300 transition shadow-sm font-medium">+ วัน-เวลา</button>
+                                                        <button type="button" onClick={() => handleInsertLineVariable('{{temple_name}}')} className="text-xs bg-gray-200 text-gray-800 px-2 py-1.5 rounded hover:bg-gray-300 transition shadow-sm font-medium">+ ชื่อวัด</button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -2363,37 +2592,47 @@
                         </div>
                     )}
 
-                    <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md py-2' : 'bg-transparent py-4'} ${settings.marqueeText ? 'top-8' : 'top-0'}`}>
+                    {/* Navbar แบบ Glassmorphism */}
+                    <nav className={`fixed w-full z-50 transition-all duration-500 ${isScrolled ? 'bg-white/85 backdrop-blur-lg shadow-lg border-b border-white/20 py-2' : 'bg-transparent py-4'} ${settings.marqueeText ? 'top-8' : 'top-0'}`}>
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isScrolled ? `bg-${theme}-600 text-white` : `bg-white text-${theme}-600`}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isScrolled ? `bg-${theme}-600 text-white shadow-md` : `bg-white/90 backdrop-blur text-${theme}-600 shadow-lg`}`}>
                                         <BookOpen className="w-6 h-6" />
                                     </div>
-                                    <span className={`text-xl font-bold ${isScrolled ? `text-${theme}-800` : 'text-white drop-shadow-md'}`}>{settings.templeName}</span>
+                                    <span className={`text-xl font-bold tracking-wide ${isScrolled ? `text-${theme}-800` : 'text-white drop-shadow-md'}`}>{settings.templeName}</span>
                                 </div>
                                 <div className="hidden md:flex items-center space-x-8">
                                     {navLinks.map((link) => (
-                                        <a key={link.name} href={link.href} className={`font-medium hover:text-${theme}-400 transition-colors ${isScrolled ? 'text-gray-600' : 'text-white drop-shadow-md'}`}>{link.name}</a>
+                                        <a key={link.name} href={link.href} className={`font-medium hover:text-${theme}-400 hover:-translate-y-0.5 transform transition-all ${isScrolled ? 'text-gray-700' : 'text-white drop-shadow-md'}`}>{link.name}</a>
                                     ))}
                                     
-                                    {/* Link for E-Tax */}
-                                    <button onClick={() => setShowETaxModal(true)} className={`font-medium text-green-400 hover:text-green-300 transition-colors flex items-center gap-1 ${isScrolled ? 'text-green-600' : 'drop-shadow-md'}`}>
+                                    <button onClick={() => setShowETaxModal(true)} className={`font-medium hover:-translate-y-0.5 transform transition-all flex items-center gap-1 ${isScrolled ? 'text-emerald-600 hover:text-emerald-500' : 'text-emerald-300 hover:text-emerald-200 drop-shadow-md'}`}>
                                         <FileCheck className="w-4 h-4" /> ขอลดหย่อนภาษี
                                     </button>
 
                                     {settings.systemStatus === 'open' ? (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`bg-${theme}-600 hover:bg-${theme}-700 text-white px-6 py-2 rounded-full font-bold flex items-center transition-transform hover:scale-105 shadow-lg`}>
+                                        <div className="flex gap-3 items-center">
+                                            <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-6 py-2.5 rounded-full font-bold flex items-center shadow-lg hover:shadow-orange-500/50 transition-all duration-300 transform hover:-translate-y-1`}>
                                                 <HeartHandshake className="w-4 h-4 mr-2" /> ร่วมทำบุญออนไลน์
                                             </button>
-                                            <button onClick={() => setShowLoginModal(true)} className="bg-gray-800/80 hover:bg-gray-900 backdrop-blur text-white px-4 py-2 rounded-full font-medium flex items-center transition">
-                                                <Lock className="w-4 h-4 mr-1" /> จนท.
+                                            
+                                            {/* ปุ่ม "จนท." ดีไซน์ใหม่ - Sleek Glass Button */}
+                                            <button onClick={() => setShowLoginModal(true)} className="group relative px-5 py-2.5 rounded-full overflow-hidden shadow-lg hover:shadow-gray-900/30 transition-all duration-300 transform hover:-translate-y-1 bg-gray-900 border border-gray-700">
+                                                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
+                                                <div className="relative flex items-center text-white font-medium text-sm tracking-wide">
+                                                    <Lock className="w-4 h-4 mr-2 group-hover:animate-bounce" />
+                                                    <span>ผู้ดูแลระบบ</span>
+                                                </div>
                                             </button>
                                         </div>
                                     ) : (
-                                        <button onClick={() => setShowLoginModal(true)} className="bg-gray-800/80 hover:bg-gray-900 backdrop-blur text-white px-6 py-2 rounded-full font-bold flex items-center transition-transform hover:scale-105 shadow-lg">
-                                            <Lock className="w-4 h-4 mr-2" /> เข้าสู่ระบบจัดการ
+                                        <button onClick={() => setShowLoginModal(true)} className="group relative px-6 py-2.5 rounded-full overflow-hidden shadow-lg hover:shadow-gray-900/30 transition-all duration-300 transform hover:-translate-y-1 bg-gray-900 border border-gray-700">
+                                            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
+                                            <div className="relative flex items-center text-white font-bold text-sm tracking-wide">
+                                                <Lock className="w-4 h-4 mr-2 group-hover:animate-bounce" />
+                                                <span>เข้าสู่ระบบจัดการ</span>
+                                            </div>
                                         </button>
                                     )}
                                 </div>
@@ -2405,29 +2644,28 @@
                             </div>
                         </div>
                         {mobileMenuOpen && (
-                            <div className="md:hidden bg-white absolute top-full left-0 w-full shadow-lg border-t border-gray-100">
-                                <div className="px-4 pt-2 pb-4 space-y-1 flex flex-col">
+                            <div className="md:hidden bg-white absolute top-full left-0 w-full shadow-2xl border-t border-gray-100 rounded-b-2xl overflow-hidden">
+                                <div className="px-4 pt-2 pb-6 space-y-2 flex flex-col">
                                     {navLinks.map((link) => (
-                                        <a key={link.name} href={link.href} onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-3 text-base font-medium text-gray-700 hover:text-${theme}-600 hover:bg-${theme}-50 rounded-md`}>{link.name}</a>
+                                        <a key={link.name} href={link.href} onClick={() => setMobileMenuOpen(false)} className={`block px-4 py-3 text-base font-medium text-gray-700 hover:text-${theme}-600 hover:bg-${theme}-50 rounded-xl transition-colors`}>{link.name}</a>
                                     ))}
                                     
-                                    {/* Mobile Link for E-Tax */}
-                                    <button onClick={() => { setMobileMenuOpen(false); setShowETaxModal(true); }} className={`w-full text-left px-3 py-3 text-base font-medium text-green-600 hover:bg-green-50 rounded-md flex items-center gap-2`}>
+                                    <button onClick={() => { setMobileMenuOpen(false); setShowETaxModal(true); }} className={`w-full text-left px-4 py-3 text-base font-medium text-emerald-600 hover:bg-emerald-50 rounded-xl flex items-center gap-2 transition-colors`}>
                                         <FileCheck className="w-5 h-5" /> ขอลดหย่อนภาษี (E-Tax)
                                     </button>
 
                                     {settings.systemStatus === 'open' ? (
                                         <>
-                                            <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`mt-2 w-full bg-${theme}-600 text-white px-4 py-3 rounded-md font-bold flex justify-center items-center`}>
+                                            <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`mt-4 w-full bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
                                                 <HeartHandshake className="w-5 h-5 mr-2" /> ร่วมทำบุญออนไลน์
                                             </button>
-                                            <button onClick={() => { setMobileMenuOpen(false); setShowLoginModal(true); }} className={`mt-2 w-full bg-gray-800 text-white px-4 py-3 rounded-md font-bold flex justify-center items-center`}>
-                                                <Lock className="w-5 h-5 mr-2" /> เข้าสู่ระบบ (เจ้าหน้าที่)
+                                            <button onClick={() => { setMobileMenuOpen(false); setShowLoginModal(true); }} className={`mt-2 w-full bg-gray-900 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
+                                                <Lock className="w-5 h-5 mr-2" /> เข้าสู่ระบบ (ผู้ดูแล)
                                             </button>
                                         </>
                                     ) : (
-                                        <button onClick={() => { setMobileMenuOpen(false); setShowLoginModal(true); }} className={`mt-2 w-full bg-gray-800 text-white px-4 py-3 rounded-md font-bold flex justify-center items-center`}>
-                                            <Lock className="w-5 h-5 mr-2" /> เข้าสู่ระบบ (เจ้าหน้าที่)
+                                        <button onClick={() => { setMobileMenuOpen(false); setShowLoginModal(true); }} className={`mt-4 w-full bg-gray-900 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
+                                            <Lock className="w-5 h-5 mr-2" /> เข้าสู่ระบบจัดการ
                                         </button>
                                     )}
                                 </div>
@@ -2436,53 +2674,61 @@
                     </nav>
 
                     {/* 1. Header/Hero Section */}
-                    <section id="home" className="relative h-[85vh] flex items-center justify-center bg-gray-900">
+                    <section id="home" className="relative h-[90vh] min-h-[600px] flex items-center justify-center bg-gray-900 overflow-hidden">
                         <div className="absolute inset-0 w-full h-full">
-                            <img src={settings.bannerUrl} alt="ภาพวัด" className="w-full h-full object-cover opacity-60" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
+                            <img src={settings.bannerUrl} alt="ภาพวัด" className="w-full h-full object-cover opacity-50 transform scale-105" />
+                            {/* Animated Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/40 to-transparent"></div>
                         </div>
-                        <div className="relative z-20 text-center px-4 max-w-4xl mx-auto mt-16">
-                            <span className={`block text-${theme}-400 font-semibold tracking-wider mb-2`}>ยินดีต้อนรับสู่</span>
-                            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-lg">{settings.templeName}</h1>
-                            <p className="text-xl md:text-2xl text-gray-200 mb-8 drop-shadow">ศูนย์รวมจิตใจชาวตำบลเวียงทอง สืบสานพระพุทธศาสนาและวัฒนธรรมล้านนา</p>
-                            <div className="mb-10 inline-block">
-                                <div className="backdrop-blur-md bg-white/10 border border-white/30 rounded-2xl p-6 shadow-2xl transform hover:scale-105 transition duration-300">
-                                    <p className={`text-${theme}-200 text-sm md:text-base font-medium mb-1 uppercase tracking-widest`}>ยอดบริจาครวมทั้งหมด</p>
-                                    <div className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200 drop-shadow-sm">฿ {(totalAmount || 0).toLocaleString()}</div>
+                        <div className="relative z-20 text-center px-4 max-w-4xl mx-auto mt-20">
+                            <span className={`block text-${theme}-400 font-bold tracking-[0.2em] mb-4 uppercase text-sm md:text-base`}>ยินดีต้อนรับสู่</span>
+                            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-2xl">{settings.templeName}</h1>
+                            <p className="text-lg md:text-2xl text-gray-300 mb-10 drop-shadow-md font-light max-w-2xl mx-auto">ศูนย์รวมจิตใจชาวตำบลเวียงทอง สืบสานพระพุทธศาสนาและวัฒนธรรมล้านนา</p>
+                            
+                            <div className="mb-12 inline-block animate-float">
+                                <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.3)]">
+                                    <p className={`text-${theme}-200 text-sm md:text-base font-semibold mb-2 uppercase tracking-widest`}>ยอดบริจาครวมทั้งหมด</p>
+                                    <div className="text-5xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200 drop-shadow-sm">฿ {(totalAmount || 0).toLocaleString()}</div>
                                 </div>
                             </div>
+                            
                             {settings.systemStatus === 'open' ? (
-                                <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center">
-                                    <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`bg-${theme}-600 hover:bg-${theme}-700 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-transform hover:scale-105 shadow-xl border-2 border-${theme}-500`}>
+                                <div className="flex flex-col sm:flex-row flex-wrap gap-5 justify-center">
+                                    <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_rgba(249,115,22,0.5)] hover:shadow-[0_0_30px_rgba(249,115,22,0.8)] border border-white/20 animate-glow`}>
                                         <HeartHandshake className="w-6 h-6 mr-2" /> ร่วมบริจาค / จองโรงทาน
                                     </button>
                                     
-                                    {/* Hero Button for E-Tax */}
-                                    <button onClick={() => setShowETaxModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-transform hover:scale-105 shadow-xl border-2 border-green-500">
+                                    <button onClick={() => setShowETaxModal(true)} className="bg-emerald-600/90 hover:bg-emerald-500 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-xl border border-white/20">
                                         <FileCheck className="w-6 h-6 mr-2" /> ขอลดหย่อนภาษี (E-Tax)
                                     </button>
 
-                                    <a href="#about" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-colors border border-white/50">ประวัติความเป็นมา</a>
+                                    <a href="#about" className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-8 py-4 rounded-full font-medium text-lg flex items-center justify-center transition-all duration-300 border border-white/30">ประวัติวัด</a>
                                 </div>
                             ) : (
-                                <button onClick={() => setShowLoginModal(true)} className="bg-red-500/80 backdrop-blur text-white px-6 py-3 rounded-lg inline-flex items-center hover:bg-red-600/90 transition-colors cursor-pointer" title="คลิกเพื่อเข้าสู่ระบบเจ้าหน้าที่">
-                                    <Lock className="w-4 h-4 mr-2" /> ขณะนี้ปิดรับบริจาคชั่วคราว (ระบบจัดการ)
-                                </button>
+                                <div className="inline-block backdrop-blur-md bg-red-500/20 border border-red-500/50 text-white px-8 py-4 rounded-2xl">
+                                    <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                                    <h3 className="font-bold text-xl">ขณะนี้ปิดรับบริจาคชั่วคราว</h3>
+                                    <p className="text-sm text-red-200 mt-1">ขออภัยในความไม่สะดวก</p>
+                                </div>
                             )}
                         </div>
                     </section>
 
                     {/* 2. History/About Section (EDITABLE) */}
-                    <section id="about" className="py-20 bg-white">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="flex flex-col md:flex-row items-center gap-12">
+                    <section id="about" className="py-24 bg-white relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+                            <div className="absolute -top-40 -right-40 w-96 h-96 bg-orange-50 rounded-full blur-3xl opacity-70"></div>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-yellow-50 rounded-full blur-3xl opacity-70"></div>
+                        </div>
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                            <div className="flex flex-col md:flex-row items-center gap-16">
                                 <div className="md:w-1/2 relative">
-                                    <div className={`absolute -inset-4 bg-${theme}-100 rounded-3xl transform rotate-3 -z-10`}></div>
-                                    <img src={aboutImage} alt="ประวัติวัด" className="w-full h-auto rounded-2xl shadow-lg object-cover aspect-[4/3]" />
+                                    <div className={`absolute -inset-4 bg-gradient-to-tr from-${theme}-100 to-amber-50 rounded-[2rem] transform -rotate-3 -z-10`}></div>
+                                    <img src={aboutImage} alt="ประวัติวัด" className="w-full h-auto rounded-[1.5rem] shadow-2xl object-cover aspect-[4/3] transform transition duration-500 hover:scale-[1.02]" />
                                 </div>
                                 <div className="md:w-1/2">
-                                    <div className={`flex items-center gap-2 text-${theme}-600 font-semibold mb-2`}><BookOpen className="w-5 h-5" /> {aboutTitle}</div>
-                                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">{renderHeading()}</h2>
+                                    <div className={`flex items-center gap-2 text-${theme}-600 font-bold mb-4 tracking-widest text-sm uppercase`}><BookOpen className="w-5 h-5" /> {aboutTitle}</div>
+                                    <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 leading-tight">{renderHeading()}</h2>
                                     <p className="text-gray-600 text-lg leading-relaxed mb-6 whitespace-pre-line">{aboutContent}</p>
                                 </div>
                             </div>
@@ -2491,39 +2737,39 @@
 
                     {/* 3. News Section (New Order) */}
                     {newsList.length > 0 && (
-                        <section id="news" className="py-20 bg-gray-50">
+                        <section id="news" className="py-24 bg-gray-50 border-t border-gray-100">
                             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                                <div className="text-center mb-12">
-                                    <h2 className={`text-3xl md:text-4xl font-bold text-gray-900`}>ข่าวประชาสัมพันธ์<span className={`text-${theme}-600`}>และกิจกรรม</span></h2>
-                                    <div className={`h-1 w-20 bg-${theme}-500 mx-auto mt-4 rounded-full`}></div>
+                                <div className="text-center mb-16">
+                                    <h2 className={`text-3xl md:text-5xl font-bold text-gray-900 mb-4`}>ข่าวประชาสัมพันธ์<span className={`text-${theme}-600`}>และกิจกรรม</span></h2>
+                                    <div className={`h-1.5 w-24 bg-gradient-to-r from-${theme}-400 to-${theme}-600 mx-auto rounded-full`}></div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {newsList.map(news => {
                                         const coverImage = (news.images && news.images.length > 0) ? news.images[0] : news.imageUrl;
                                         return (
-                                            <div key={news.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group cursor-pointer" onClick={() => setSelectedNews(news)}>
-                                                <div className="h-56 bg-gray-200 overflow-hidden relative">
+                                            <div key={news.id} className="bg-white rounded-3xl shadow-lg shadow-gray-200/50 overflow-hidden hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group cursor-pointer border border-gray-100" onClick={() => setSelectedNews(news)}>
+                                                <div className="h-60 bg-gray-200 overflow-hidden relative">
                                                     {coverImage ? (
-                                                        <img src={coverImage} alt={news.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                        <img src={coverImage} alt={news.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-gray-400">
                                                             <ImageIcon className="w-12 h-12" />
                                                         </div>
                                                     )}
                                                     {news.images && news.images.length > 1 && (
-                                                        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-md">
+                                                        <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur text-white text-xs px-3 py-1.5 rounded-lg font-medium">
                                                             +{news.images.length - 1} รูป
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="p-6">
-                                                    <div className={`text-sm font-semibold text-${theme}-600 mb-2 flex items-center`}>
+                                                <div className="p-8">
+                                                    <div className={`text-sm font-bold text-${theme}-600 mb-3 flex items-center bg-${theme}-50 w-fit px-3 py-1 rounded-full`}>
                                                         <Calendar className="w-4 h-4 mr-2" />
                                                         {new Date(news.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
                                                     </div>
-                                                    <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-orange-600 transition-colors">{news.title}</h3>
-                                                    <p className="text-gray-600 text-sm line-clamp-3 mb-4">{news.content}</p>
-                                                    <button onClick={(e) => { e.stopPropagation(); setSelectedNews(news); }} className={`text-${theme}-600 font-semibold hover:underline text-sm`}>อ่านเพิ่มเติม →</button>
+                                                    <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-orange-600 transition-colors leading-snug">{news.title}</h3>
+                                                    <p className="text-gray-500 text-sm line-clamp-3 mb-6 leading-relaxed">{news.content}</p>
+                                                    <div className={`text-${theme}-600 font-bold hover:underline text-sm flex items-center`}>อ่านเพิ่มเติม <ChevronRight className="w-4 h-4 ml-1" /></div>
                                                 </div>
                                             </div>
                                         );
@@ -2594,26 +2840,39 @@
                     {showETaxModal && <ETaxModal onClose={() => setShowETaxModal(false)} />}
 
                     {/* 4. Contact/Footer Section */}
-                    <footer id="contact" className="bg-gray-900 text-white pt-16 pb-8 mt-auto">
+                    <footer id="contact" className="bg-gray-900 text-white pt-20 pb-10 mt-auto border-t-[8px] border-orange-500">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 border-b border-gray-800 pb-12">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
                                 <div>
-                                    <div className="flex items-center gap-3 mb-6"><div className={`w-10 h-10 rounded-full bg-${theme}-600 flex items-center justify-center text-white`}><BookOpen className="w-6 h-6" /></div><span className="text-2xl font-bold text-white">{settings.templeName}</span></div>
-                                    <div className="flex space-x-4 mt-4">
-                                        {settings.contact.facebook && <a href={settings.contact.facebook} target="_blank" className="text-gray-400 hover:text-white"><Facebook className="w-6 h-6" /></a>}
-                                        {settings.contact.line && <a href={settings.contact.line} target="_blank" className="text-gray-400 hover:text-white"><MessageCircle className="w-6 h-6" /></a>}
+                                    <div className="flex items-center gap-3 mb-6"><div className={`w-12 h-12 rounded-2xl bg-gradient-to-br from-${theme}-400 to-${theme}-600 flex items-center justify-center text-white shadow-lg`}><BookOpen className="w-6 h-6" /></div><span className="text-3xl font-bold text-white tracking-tight">{settings.templeName}</span></div>
+                                    <p className="text-gray-400 mb-6 font-light">ร่วมสร้างบุญกุศล สะสมบารมี เป็นที่พึ่งทางใจของชาวพุทธ</p>
+                                    <div className="flex space-x-4">
+                                        {settings.contact.facebook && <a href={settings.contact.facebook} target="_blank" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all duration-300"><Facebook className="w-5 h-5" /></a>}
+                                        {settings.contact.line && <a href={settings.contact.line} target="_blank" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-green-500 hover:text-white transition-all duration-300"><MessageCircle className="w-5 h-5" /></a>}
                                     </div>
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold mb-6 text-white">ข้อมูลติดต่อ</h3>
-                                    <ul className="space-y-4">
-                                        <li className="flex items-start"><MapPin className={`w-5 h-5 text-${theme}-500 mr-3 mt-1 flex-shrink-0`} /><span className="text-gray-400">{settings.contact.address}</span></li>
-                                        <li className="flex items-center"><Phone className={`w-5 h-5 text-${theme}-500 mr-3 flex-shrink-0`} /><span className="text-gray-400">{settings.contact.phone}</span></li>
+                                    <h3 className="text-xl font-bold mb-6 text-white tracking-wide">ข้อมูลติดต่อ</h3>
+                                    <ul className="space-y-5">
+                                        <li className="flex items-start"><div className={`p-2 rounded-lg bg-gray-800 mr-4 text-${theme}-400`}><MapPin className="w-5 h-5" /></div><span className="text-gray-400 leading-relaxed">{settings.contact.address}</span></li>
+                                        <li className="flex items-center"><div className={`p-2 rounded-lg bg-gray-800 mr-4 text-${theme}-400`}><Phone className="w-5 h-5" /></div><span className="text-gray-400 font-mono text-lg">{settings.contact.phone}</span></li>
                                     </ul>
                                 </div>
-                                <div><h3 className="text-lg font-bold mb-6 text-white">เวลาทำการ</h3><p className="text-gray-400">06:00 - 18:00 น. ทุกวัน</p></div>
+                                <div>
+                                    <h3 className="text-xl font-bold mb-6 text-white tracking-wide">เวลาทำการ</h3>
+                                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-gray-300">เปิดให้เข้าชม/ทำบุญ</span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-orange-400 font-mono">06:00 - 18:00 น.</div>
+                                        <p className="text-gray-500 text-sm mt-2">เปิดทำการทุกวัน ไม่มีวันหยุด</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="text-center text-gray-500 text-sm"><p>&copy; {new Date().getFullYear()} {settings.templeName}. All rights reserved.</p></div>
+                            <div className="text-center text-gray-600 text-sm border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
+                                <p>&copy; {new Date().getFullYear()} {settings.templeName}. All rights reserved.</p>
+                                <p className="mt-2 md:mt-0 opacity-50">Powered by Donation Management System</p>
+                            </div>
                         </div>
                     </footer>
                 </div>
@@ -2710,19 +2969,24 @@
                 const config = settings.lineNotify;
                 if (!config?.enabled || !config?.webhookUrl || !config?.targetIds) return;
 
-                // จัดรูปแบบข้อความอนุโมทนาบุญ
+                // จัดรูปแบบข้อความจาก Template
                 let purposeText = donation.purpose;
                 if (donation.roongTaanDate) {
                     purposeText += ` (วันที่ ${new Date(donation.roongTaanDate).toLocaleDateString('th-TH')} - ${donation.roongTaanNote})`;
                 }
 
-                let message = `\n🔔 แจ้งยอดรับบริจาค 🔔\n${settings.templeName}\n-------------------------\n👤 ผู้บริจาค: ${donation.name}\n📝 รายการ: ${purposeText}\n💰 จำนวนเงิน: ${donation.amount.toLocaleString()} บาท\n💳 ช่องทาง: ${donation.method}`;
+                // ดึง Template มาจากตั้งค่า หรือถ้าไม่มีให้ใช้ค่า Default
+                const template = config.messageTemplate || DEFAULT_SETTINGS.lineNotify.messageTemplate;
                 
-                if (donation.generalNote) {
-                    message += `\n📌 หมายเหตุ: ${donation.generalNote}`;
-                }
-                
-                message += `\n-------------------------\n✨ ขออนุโมทนาบุญ ให้ประสบแต่ความสุข ความเจริญ ✨\n\nท่านอื่นสามารถบริจาคได้ผ่านทางช่องทาง line bot ของทางวัดไชยามาตย์ได้ที่ https://lin.ee/cjY0EKj พิมพ์ "บริจาค" และทำตามขั้นตอนได้เลย`;
+                // แทนที่ตัวแปรด้วยข้อมูลจริง
+                const message = template
+                    .replace(/\{\{temple_name\}\}/g, settings.templeName || '')
+                    .replace(/\{\{name\}\}/g, donation.name || '')
+                    .replace(/\{\{purpose\}\}/g, purposeText || '')
+                    .replace(/\{\{amount\}\}/g, (donation.amount || 0).toLocaleString())
+                    .replace(/\{\{method\}\}/g, donation.method || '')
+                    .replace(/\{\{note\}\}/g, donation.generalNote ? donation.generalNote : '-')
+                    .replace(/\{\{date\}\}/g, new Date(donation.dateTime).toLocaleString('th-TH'));
 
                 try {
                     const formData = new URLSearchParams();
