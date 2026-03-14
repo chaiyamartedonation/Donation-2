@@ -49,12 +49,10 @@
         /* CSS สำหรับการพิมพ์ (REPORT & RECEIPT)       */
         /* ========================================= */
         @media screen {
-            /* ซ่อนตารางและหัวกระดาษที่ใช้เฉพาะตอนพิมพ์ เมื่อแสดงผลบนหน้าจอปกติ */
-            .print-only, .print-header-official, .print-summary-official, .signature-section { display: none !important; }
+            .print-only { display: none !important; }
         }
 
         @media print {
-            /* ตั้งค่ากระดาษพื้นฐาน */
             body {
                 background: white !important; 
                 margin: 0 !important; 
@@ -82,7 +80,6 @@
                 margin: 0 !important;
             }
 
-            /* จัดการตารางรายงานให้อ่านง่าย มีกรอบชัดเจน */
             .print-table { 
                 width: 100% !important; 
                 border-collapse: collapse !important; 
@@ -94,7 +91,6 @@
                 page-break-after: auto !important; 
             }
             .print-table thead { display: table-header-group !important; }
-            .print-table tfoot { display: table-footer-group !important; }
             .print-table th, .print-table td { 
                 border: 1px solid #000 !important; 
                 padding: 8px !important; 
@@ -103,54 +99,31 @@
             }
             .print-table th { background-color: #f0f0f0 !important; font-weight: bold !important; text-align: center; }
 
-            /* หัวกระดาษและท้ายกระดาษสำหรับรายงาน (แสดงเฉพาะตอนพิมพ์) */
-            .print-header-official { display: block !important; text-align: center; margin-bottom: 20px; color: black !important; }
-            .print-summary-official { display: block !important; margin-bottom: 20px; padding: 10px; border: 1px double #000; color: black !important; }
             .signature-section { display: flex !important; page-break-inside: avoid !important; margin-top: 50px !important; justify-content: space-between; }
             .signature-box { text-align: center; width: 40%; color: black !important; }
             .signature-line { border-bottom: 1px dotted black; width: 80%; margin: 30px auto 10px auto; height: 1px; }
 
-            /* --- 2. การพิมพ์ใบเสร็จ (Receipt A4 Portrait) --- */
+            /* --- 2. การพิมพ์ใบเสร็จ (Receipt A4 Landscape) --- */
             body.printing-receipt * { visibility: hidden; }
             body.printing-receipt .receipt-print-zone, 
             body.printing-receipt .receipt-print-zone * { visibility: visible; }
             
-            /* บังคับขนาดใบเสร็จให้อยู่ตรงมุมกระดาษพอดี 210x297mm = A4 แนวตั้ง */
             body.printing-receipt .receipt-print-zone {
-                position: fixed !important; 
+                position: absolute !important; 
                 left: 0 !important; 
                 top: 0 !important; 
-                width: 210mm !important; 
-                height: 297mm !important;
-                max-width: none !important; 
-                max-height: none !important;
-                background: white !important; 
+                width: 297mm !important; /* ความกว้าง A4 แนวนอน */
+                height: 210mm !important; /* ความสูง A4 แนวนอน */
                 margin: 0 !important; 
-                padding: 10mm !important; 
-                box-sizing: border-box !important;
-                overflow: hidden !important;
+                padding: 15mm !important; /* ระยะขอบด้านใน */
+                box-shadow: none !important;
+                background: white !important;
             }
             
             .receipt-print-zone * {
                 font-family: 'Sarabun', sans-serif !important; 
                 color: black !important;
             }
-        }
-        
-        /* สไตล์พิเศษสำหรับกรอบใบอนุโมทนา A4 */
-        .thai-border {
-            border: 8px double #8B4513;
-            padding: 4px;
-            background-color: #FFFDF5;
-            box-sizing: border-box;
-        }
-        .thai-inner-border {
-            border: 1px solid #8B4513;
-            padding: 30px;
-            height: 100%;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
         }
         
         /* Hide Scrollbar */
@@ -261,14 +234,12 @@
             { id: 'Mali', name: 'Mali (ลายมือ)' },
         ];
 
-        // E-Tax Link Constant
         const E_TAX_URL = "https://chaiyamartta.github.io/E-Tax-Donation/";
 
         // ==========================================
         // 3. UTILITIES
         // ==========================================
         
-        // แปลงตัวเลขเป็นอักษรไทย (Thai Baht Text)
         const convertToThaiBahtText = (amount) => {
             if (amount === 0 || isNaN(amount)) return "ศูนย์บาทถ้วน";
             const numberString = Math.floor(amount).toString();
@@ -279,13 +250,12 @@
             for (let i = 0; i < length; i++) {
                 const num = parseInt(numberString.charAt(i));
                 const pos = length - i - 1;
-                
                 if (num !== 0) {
                     if (pos === 1 && num === 1) { text += 'สิบ'; }
                     else if (pos === 1 && num === 2) { text += 'ยี่สิบ'; }
                     else if (pos === 0 && num === 1 && length > 1 && parseInt(numberString.charAt(i-1)) !== 0) { text += 'เอ็ด'; }
                     else { text += numbers[num] + positions[pos]; }
-                } else if (pos === 6) { // จัดการกรณีล้าน
+                } else if (pos === 6) { 
                     text += positions[pos];
                 }
             }
@@ -304,16 +274,13 @@
                         const MAX_WIDTH = 800;
                         let targetWidth = img.width;
                         let targetHeight = img.height;
-                        
                         if (targetWidth > MAX_WIDTH) {
                             targetHeight = targetHeight * (MAX_WIDTH / targetWidth);
                             targetWidth = MAX_WIDTH;
                         }
-                        
                         canvas.width = targetWidth;
                         canvas.height = targetHeight;
                         const ctx = canvas.getContext('2d');
-                        
                         if (file.type === 'image/png') {
                             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                             resolve(canvas.toDataURL('image/png'));
@@ -349,16 +316,15 @@
         // 4. MODALS & SUB-COMPONENTS
         // ==========================================
         
-        // ----- Receipt Modal (ใบอนุโมทนาบัตร A4 Portrait) -----
+        // ----- Receipt Modal (ใบอนุโมทนาบัตร A4 Landscape แก้ปัญหา PDF เพี้ยน 100%) -----
         function ReceiptModal({ donation, settings, onClose }) {
             const [isExporting, setIsExporting] = useState(false);
 
-            // ระบบจัดการตั้งค่ากระดาษสำหรับ Receipt (A4 Portrait)
             useEffect(() => {
                 document.body.classList.add('printing-receipt');
                 const style = document.createElement('style');
                 style.id = 'receipt-print-page-style';
-                style.innerHTML = `@page { size: A4 portrait; margin: 0mm; }`;
+                style.innerHTML = `@page { size: A4 landscape; margin: 0; }`;
                 document.head.appendChild(style);
 
                 return () => {
@@ -371,10 +337,9 @@
             if (!donation) return null;
 
             const dateObj = donation.dateTime ? new Date(donation.dateTime) : new Date();
-            const yearStr = (dateObj.getFullYear() + 543).toString().slice(-2); 
+            const yearStr = (dateObj.getFullYear() + 543).toString(); 
             const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-            const receiptNo = `RCP-${yearStr}${monthStr}-${donation.id.slice(-5).toUpperCase()}`;
-            
+            const receiptNo = `RCP-${yearStr.slice(-2)}${monthStr}-${donation.id.slice(-5).toUpperCase()}`;
             const printDateStr = dateObj.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
             const amountText = convertToThaiBahtText(donation.amount);
             const rcpSettings = settings.receipt || DEFAULT_SETTINGS.receipt;
@@ -386,7 +351,6 @@
                 printPurpose = `จองโรงทาน วันที่ ${new Date(donation.roongTaanDate).toLocaleDateString('th-TH')} (${donation.roongTaanNote || ''})`;
             }
 
-            // ฟังก์ชันดาวน์โหลด PDF โดยใช้ html2pdf.js
             const handleDownloadPDF = () => {
                 setIsExporting(true);
                 const element = document.getElementById('receipt-pdf-content');
@@ -394,12 +358,12 @@
                 const opt = {
                     margin:       0,
                     filename:     `ใบอนุโมทนาบัตร_${receiptNo}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, logging: false },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    image:        { type: 'jpeg', quality: 1.0 },
+                    // บังคับจำลองหน้าจอความกว้างที่ 1123px เสมอ (ป้องกันตัวหนังสือบีบอัด)
+                    html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 1123 },
+                    jsPDF:        { unit: 'px', format: [1123, 794], orientation: 'landscape' }
                 };
 
-                // ใช้ setTimeout เพื่อให้ React อัปเดต UI (ปุ่มโหลดหมุน) ก่อนเริ่มการประมวลผล PDF ที่อาจทำให้จอค้าง
                 setTimeout(() => {
                     html2pdf().set(opt).from(element).save().then(() => {
                         setIsExporting(false);
@@ -408,141 +372,150 @@
                         setIsExporting(false);
                         alert("เกิดข้อผิดพลาดในการดาวน์โหลด PDF โปรดลองอีกครั้ง");
                     });
-                }, 100);
+                }, 400); // ดีเลย์ให้ฟอนต์โหลดและ UI เปลี่ยนก่อน
             };
 
             return (
-                <div className="fixed inset-0 bg-black/80 z-[150] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-                    <div className="bg-gray-100 w-full max-w-4xl relative rounded-lg shadow-2xl flex flex-col h-[95vh] animate-scale-up">
+                <div className="fixed inset-0 bg-black/80 z-[150] flex flex-col items-center justify-start p-4 overflow-hidden">
+                    
+                    {/* Action Bar */}
+                    <div className="bg-white rounded-xl px-4 py-3 flex justify-between items-center z-20 no-print shadow-xl w-full max-w-[1123px] mb-4 shrink-0">
+                        <h2 className="text-lg font-bold flex items-center text-gray-800"><ScrollText className="w-5 h-5 mr-2 text-orange-600"/> ตัวอย่างใบอนุโมทนาบัตร (A4)</h2>
+                        <div className="flex gap-2">
+                            <button onClick={handleDownloadPDF} disabled={isExporting} className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium flex items-center transition shadow">
+                                {isExporting ? <Loader className="w-4 h-4 mr-2 animate-spin"/> : <Download className="w-4 h-4 mr-2"/>}
+                                {isExporting ? 'กำลังสร้าง PDF...' : 'ดาวน์โหลด PDF'}
+                            </button>
+                            <button onClick={() => window.print()} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium flex items-center transition shadow">
+                                <Printer className="w-4 h-4 sm:mr-2"/> <span className="hidden sm:inline">สั่งพิมพ์</span>
+                            </button>
+                            <button onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-lg transition ml-2">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Preview Area Container - ซูมให้พอดีจอ แต่ขนาดจริงข้างในโดนล็อกไว้ */}
+                    <div className="w-full max-w-[1123px] flex-grow overflow-auto bg-gray-900/40 rounded-xl flex justify-center p-2 sm:p-6 hide-scrollbar">
                         
-                        {/* Action Bar (No Print) */}
-                        <div className="bg-white px-4 sm:px-6 py-4 border-b flex justify-between items-center rounded-t-lg sticky top-0 z-20 no-print shadow-sm">
-                            <h2 className="text-lg sm:text-xl font-bold flex items-center text-gray-800"><ScrollText className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-orange-600"/> อนุโมทนาบัตร (A4)</h2>
-                            <div className="flex gap-2">
-                                <button onClick={handleDownloadPDF} disabled={isExporting} className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 sm:px-4 py-2 rounded font-medium flex items-center transition shadow-sm">
-                                    {isExporting ? <Loader className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin"/> : <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2"/>}
-                                    <span className="hidden sm:inline">{isExporting ? 'กำลังสร้าง PDF...' : 'โหลด PDF'}</span>
-                                </button>
-                                <button onClick={() => window.print()} className="bg-orange-600 hover:bg-orange-700 text-white px-3 sm:px-4 py-2 rounded font-medium flex items-center transition shadow-sm">
-                                    <Printer className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2"/> <span className="hidden sm:inline">พิมพ์ (A4)</span>
-                                </button>
-                                <button onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded transition">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Printable Area (A4 Portrait Format Fixed Layout) */}
-                        <div className="p-4 sm:p-8 overflow-y-auto bg-gray-300 flex-grow flex justify-center items-start">
+                        {/* ACTUAL A4 LANDSCAPE EXACT PIXELS (1123 x 794) - เปลี่ยน Flex เป็น Table ป้องกัน PDF พัง */}
+                        <div id="receipt-pdf-content" className="bg-white shadow-2xl relative shrink-0" 
+                             style={{ fontFamily: "'Sarabun', sans-serif", width: '1123px', height: '794px', color: '#1f2937', boxSizing: 'border-box', overflow: 'hidden' }}>
                             
-                            {/* กรอบกระดาษ: ล็อคขนาด A4 แผ่นเต็ม (210x297mm) */}
-                            <div id="receipt-pdf-content" className="receipt-print-zone bg-white shadow-xl text-black thai-border relative w-full" style={{fontFamily: "'Sarabun', sans-serif", width: '210mm', height: '297mm', minHeight: '297mm', maxWidth: '210mm'}}>
-                                <div className="thai-inner-border relative z-10 flex flex-col justify-start h-full p-8 sm:p-10">
-                                    
-                                    {/* Header */}
-                                    <div className="flex justify-between items-start mb-8 border-b-2 border-gray-800 pb-6 pt-4">
-                                        <div className="flex items-center gap-6">
-                                            <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" alt="Logo" className="h-24 sm:h-28 object-contain drop-shadow-md" />
-                                            <div>
-                                                <h2 className="text-2xl sm:text-3xl font-bold text-[#8B4513] mb-2">{settings.templeName}</h2>
-                                                <p className="text-sm sm:text-base text-gray-800">{rcpSettings.address}</p>
-                                                <p className="text-sm sm:text-base mt-1 text-gray-700">เลขประจำตัวผู้เสียภาษี: <span className="font-mono">{rcpSettings.taxId}</span></p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right flex flex-col items-end">
-                                            <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-gray-900 bg-gray-100 py-2 px-6 rounded-lg border border-gray-300 tracking-wider shadow-sm">ใบเสร็จรับเงิน</h1>
-                                            
-                                            <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm sm:text-base text-left">
-                                                <div className="font-bold text-right whitespace-nowrap text-gray-600">เล่มที่/เลขที่:</div> 
-                                                <div className="whitespace-nowrap font-semibold text-gray-900">{receiptNo}</div>
-                                                <div className="font-bold text-right whitespace-nowrap text-gray-600">วันที่:</div> 
-                                                <div className="whitespace-nowrap font-medium text-gray-900">{printDateStr}</div>
-                                            </div>
-                                        </div>
-                                    </div>
+                            {/* แถบสีด้านบน */}
+                            <div className="absolute top-[20px] left-[20px] right-[20px] h-[15px] bg-[#f97316]" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
+                            
+                            {/* ลายน้ำ */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0">
+                                <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" crossOrigin="anonymous" style={{ width: '450px' }} alt="Watermark" />
+                            </div>
 
-                                    {/* Body Text */}
-                                    <div className="flex flex-col space-y-8 text-lg sm:text-xl mt-6 px-4">
-                                        <div className="flex items-baseline gap-3">
-                                            <span className="font-bold whitespace-nowrap text-gray-800">ได้รับเงินจาก:</span>
-                                            <div className="border-b border-dotted border-gray-500 flex-grow text-xl sm:text-2xl px-2 font-medium text-gray-900">{donation.name}</div>
-                                        </div>
-                                        
-                                        <div className="flex items-baseline gap-3">
-                                            <span className="font-bold whitespace-nowrap text-gray-800">รายการ:</span>
-                                            <div className="border-b border-dotted border-gray-500 flex-grow px-2 truncate text-gray-900">{printPurpose}</div>
-                                        </div>
-
-                                        <div className="flex flex-col sm:flex-row items-baseline gap-6 w-full pt-2">
-                                            <div className="flex items-baseline gap-3 flex-1">
-                                                <span className="font-bold whitespace-nowrap text-gray-800">จำนวนเงิน:</span>
-                                                <div className="border-b border-dotted border-gray-500 flex-grow font-bold text-2xl sm:text-3xl text-center px-2 text-gray-900">{(donation.amount || 0).toLocaleString()}</div>
-                                                <span className="font-bold whitespace-nowrap pr-2 text-gray-800">บาท</span>
-                                            </div>
-                                            <div className="flex items-baseline gap-3 flex-[1.5]">
-                                                <span className="font-bold whitespace-nowrap text-base sm:text-lg text-gray-800">ตัวอักษร:</span>
-                                                <div className="border-b border-dotted border-gray-500 flex-grow text-center text-base sm:text-lg bg-gray-50 px-2 py-1 rounded-t truncate font-medium text-gray-800">({amountText})</div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex items-baseline gap-3 pt-2">
-                                            <span className="font-bold whitespace-nowrap text-gray-800">ชำระโดย:</span>
-                                            <div className="border-b border-dotted border-gray-500 w-32 sm:w-40 px-2 text-center text-gray-900">{donation.method}</div>
-                                            {donation.generalNote && (
-                                                <>
-                                                    <span className="font-bold whitespace-nowrap ml-4 sm:ml-6 text-gray-800">หมายเหตุ:</span>
-                                                    <div className="border-b border-dotted border-gray-500 flex-grow text-gray-700 px-2 italic text-base sm:text-lg truncate">{donation.generalNote}</div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Signatures - Pushed to the middle-bottom part of A4 to look well-proportioned */}
-                                    <div className="mt-24 pt-10 flex justify-between items-end px-8 sm:px-16 relative z-20">
-                                        
-                                        {/* กล่องซ้าย: ผู้ชำระเงิน */}
-                                        <div className="text-center w-48 sm:w-64 relative">
-                                            <p className="text-sm sm:text-base mb-2 text-gray-600 font-medium">ผู้บริจาค / ผู้ชำระเงิน</p>
-                                            <div className="border-b border-solid border-gray-800 w-full mb-3 h-12 sm:h-16 relative flex justify-center items-end"></div>
-                                            <p className="text-sm sm:text-base truncate text-gray-900 font-medium">( {donation.name} )</p>
-                                        </div>
-                                        
-                                        {/* ข้อความกลาง */}
-                                        <div className="text-center text-sm sm:text-base italic text-gray-500 mb-6 px-4 absolute left-1/2 -translate-x-1/2 bottom-8 whitespace-nowrap">
-                                            "ขออนุโมทนาบุญ ให้ประสบแต่ความสุข ความเจริญ"
-                                        </div>
-
-                                        {/* กล่องขวา: เจ้าอาวาส/ผู้รับเงิน */}
-                                        <div className="text-center w-48 sm:w-64 relative">
-                                            <p className="text-sm sm:text-base mb-2 text-gray-600 font-medium">เจ้าอาวาส / ผู้รับเงิน</p>
-                                            <div className="border-b border-solid border-gray-800 w-full mb-3 h-12 sm:h-16 relative flex justify-center items-end">
-                                                {/* รูปลายเซ็น */}
-                                                {rcpSettings.signatureUrl && (
-                                                    <img src={rcpSettings.signatureUrl} className="absolute bottom-1 max-h-16 sm:max-h-20 w-auto object-contain pointer-events-none" style={{ mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
-                                                )}
-                                            </div>
-                                            <p className="text-sm sm:text-base font-bold truncate text-gray-900">( {rcpSettings.abbotName} )</p>
-                                            <p className="text-xs sm:text-sm mt-1 text-gray-600 truncate">{settings.templeName}</p>
-                                            
-                                            {/* รูปตราประทับ (Fix ขนาด 3cm แท้จริง) */}
-                                            {rcpSettings.stampUrl && (
-                                                <div className="absolute top-0 right-0 pointer-events-none z-10 translate-x-4 sm:translate-x-6 -translate-y-4 sm:-translate-y-6" style={{ mixBlendMode: 'multiply' }}>
-                                                    <img 
-                                                        src={rcpSettings.stampUrl} 
-                                                        alt="ตราประทับ" 
-                                                        className="object-contain"
-                                                        style={{ width: '35mm', height: '35mm', transform: 'rotate(-10deg)', opacity: 0.9 }}
-                                                    />
+                            <div className="relative z-20 w-full h-full p-[70px] pt-[80px] flex flex-col">
+                                
+                                {/* Header - ใช้ Table เพื่อให้จัดหน้าซ้ายขวาได้ตรงเป๊ะตอนแปลง PDF */}
+                                <table className="w-full border-b border-gray-300 pb-[20px] mb-[30px]" style={{borderCollapse: 'collapse'}}>
+                                    <tbody>
+                                        <tr>
+                                            <td className="align-top w-[140px] pr-[20px]">
+                                                <div className="w-[120px] h-[120px] bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center p-2" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                                    <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" crossOrigin="anonymous" alt="Logo" className="max-w-full max-h-full object-contain" />
                                                 </div>
-                                            )}
-                                        </div>
-                                        
-                                    </div>
-                                    
+                                            </td>
+                                            <td className="align-top pt-[10px]">
+                                                <h2 className="text-[38px] font-bold text-[#1f2937] tracking-tight m-0 p-0 leading-none mb-[8px]">{settings.templeName}</h2>
+                                                <p className="text-[18px] text-gray-500 m-0 p-0 mb-[4px]">{rcpSettings.address}</p>
+                                                <p className="text-[15px] text-gray-400 m-0 p-0">เลขประจำตัวผู้เสียภาษีอากร: <span className="font-mono">{rcpSettings.taxId}</span></p>
+                                            </td>
+                                            <td className="align-top text-right pt-[10px]">
+                                                <div className="inline-block bg-[#fff7ed] text-[#c2410c] px-[24px] py-[8px] rounded-[24px] font-bold text-[24px] tracking-wide mb-[16px]" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                                    ใบอนุโมทนาบัตร
+                                                </div>
+                                                <table className="text-[16px] text-gray-500 font-medium ml-auto" style={{borderCollapse: 'collapse'}}>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td className="text-right pr-3 pb-2">เลขที่อ้างอิง:</td>
+                                                            <td className="text-gray-900 font-bold pb-2 text-left">{receiptNo}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="text-right pr-3">วันที่ทำรายการ:</td>
+                                                            <td className="text-gray-900 font-bold text-left">{printDateStr}</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                {/* Body Text - โครงสร้างตาราง (Table) ช่วยป้องกันข้อความซ้อนทับกัน (100% Layout Safe) */}
+                                <div className="flex-grow pt-[10px]">
+                                    <table className="w-full text-[24px]" style={{ borderSpacing: '0 30px', borderCollapse: 'separate' }}>
+                                        <tbody>
+                                            <tr>
+                                                <td className="text-gray-500 font-medium w-[180px] align-bottom pb-1">ได้รับเงินจาก</td>
+                                                <td colSpan="3" className="border-b border-gray-300 font-bold text-[30px] text-gray-800 px-4 align-bottom pb-1">{donation.name}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="text-gray-500 font-medium align-bottom pb-1">เพื่อร่วมทำบุญ</td>
+                                                <td colSpan="3" className="border-b border-gray-300 text-[26px] text-gray-800 px-4 align-bottom pb-1">{printPurpose}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="text-gray-500 font-medium align-bottom pb-1">จำนวนเงิน</td>
+                                                <td className="border-b border-gray-300 font-bold text-[34px] text-[#ea580c] px-4 align-bottom text-center pb-1 w-[250px]">
+                                                    {(donation.amount || 0).toLocaleString()}
+                                                </td>
+                                                <td className="text-gray-500 font-medium align-bottom px-6 pb-1 w-[100px] text-center">บาท</td>
+                                                <td className="border-b border-gray-300 text-center text-[22px] text-gray-700 font-medium bg-[#f9fafb] align-bottom pb-1" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                                    ( {amountText} )
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="text-gray-500 font-medium align-bottom pb-1">ชำระโดย</td>
+                                                <td className="border-b border-gray-300 text-gray-800 px-4 text-center align-bottom font-medium pb-1">{donation.method}</td>
+                                                <td className="text-gray-500 font-medium align-bottom px-6 pb-1 w-[120px] text-center">หมายเหตุ</td>
+                                                <td className="border-b border-gray-300 text-[22px] text-gray-600 px-4 italic align-bottom pb-1">{donation.generalNote || "-"}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
+
+                                {/* Signatures - ใช้ Table ป้องกันข้อความเซ็นชื่อกระโดดพัง */}
+                                <table className="w-full mt-auto z-20 relative" style={{borderCollapse: 'collapse'}}>
+                                    <tbody>
+                                        <tr>
+                                            <td className="w-[30%] text-center align-bottom px-4">
+                                                <div className="border-b border-gray-300 w-full mb-[12px] h-[60px]"></div>
+                                                <p className="text-[20px] font-bold text-gray-800 m-0 mb-1">( {donation.name} )</p>
+                                                <p className="text-[14px] text-gray-400 uppercase tracking-widest m-0">ผู้บริจาค / ผู้ชำระเงิน</p>
+                                            </td>
+                                            <td className="w-[40%] text-center align-bottom pb-[25px] px-4">
+                                                <div className="text-[18px] text-[#ea580c] font-medium italic">
+                                                    " สุโข ปุญฺญสฺส อุจฺจโย : การสั่งสมบุญนำสุขมาให้ "
+                                                </div>
+                                            </td>
+                                            <td className="w-[30%] text-center align-bottom px-4 relative">
+                                                <div className="border-b border-gray-300 w-full mb-[12px] h-[60px] relative">
+                                                    {/* ลายเซ็น */}
+                                                    {rcpSettings.signatureUrl && (
+                                                        <img src={rcpSettings.signatureUrl} crossOrigin="anonymous" className="absolute bottom-1 left-0 right-0 mx-auto max-h-[85px] w-auto object-contain" style={{ mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
+                                                    )}
+                                                </div>
+                                                <p className="text-[20px] font-bold text-gray-800 m-0 mb-1">( {rcpSettings.abbotName} )</p>
+                                                <p className="text-[14px] text-gray-400 uppercase tracking-widest m-0">เจ้าอาวาส / ผู้รับเงิน</p>
+                                                
+                                                {/* ตราประทับ */}
+                                                {rcpSettings.stampUrl && (
+                                                    <div className="absolute top-[-30px] right-[-10px] w-[140px] h-[140px]" style={{ mixBlendMode: 'multiply' }}>
+                                                        <img src={rcpSettings.stampUrl} crossOrigin="anonymous" alt="ตราประทับ" className="w-full h-full object-contain opacity-90 -rotate-12" />
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
                             </div>
                         </div>
-
                     </div>
                 </div>
             );
@@ -1523,7 +1496,7 @@
                     <div className="print-container print-only">
                         {/* OFFICIAL HEADER (Print Only) */}
                         <div className="print-header-official">
-                            <div className="mb-4">
+                            <div className="mb-4 text-center w-full">
                                 <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" alt="Logo" style={{ height: '100px', display: 'inline-block' }} />
                             </div>
                             <h1 className="text-2xl font-bold mb-1">บันทึกรายงานสรุปยอดบริจาค</h1>
@@ -2743,7 +2716,13 @@
                     purposeText += ` (วันที่ ${new Date(donation.roongTaanDate).toLocaleDateString('th-TH')} - ${donation.roongTaanNote})`;
                 }
 
-                const message = `\n🙏 ขออนุโมทนาบุญกับ\nคุณ: ${donation.name}\nที่ได้ร่วมบริจาค: ${purposeText}\nจำนวนเงิน: ${donation.amount.toLocaleString()} บาท\nช่องทาง: ${donation.method}\n\n✨ สาธุ อนุโมทามิ ✨`;
+                let message = `\n🔔 แจ้งยอดรับบริจาค 🔔\n${settings.templeName}\n-------------------------\n👤 ผู้บริจาค: ${donation.name}\n📝 รายการ: ${purposeText}\n💰 จำนวนเงิน: ${donation.amount.toLocaleString()} บาท\n💳 ช่องทาง: ${donation.method}`;
+                
+                if (donation.generalNote) {
+                    message += `\n📌 หมายเหตุ: ${donation.generalNote}`;
+                }
+                
+                message += `\n-------------------------\n✨ ขออนุโมทนาบุญ ให้ประสบแต่ความสุข ความเจริญ ✨\n\nท่านอื่นสามารถบริจาคได้ผ่านทางช่องทาง line bot ของทางวัดไชยามาตย์ได้ที่ https://lin.ee/cjY0EKj พิมพ์ "บริจาค" และทำตามขั้นตอนได้เลย`;
 
                 try {
                     const formData = new URLSearchParams();
