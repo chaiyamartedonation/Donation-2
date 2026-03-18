@@ -1668,21 +1668,25 @@
                         </table>
     
                         {/* หมายเหตุ */}
-                        {filteredData.filter(d => d.status === 'pending').length > 0 && (
-                            <p className="text-[10px] mt-2 text-gray-600">
-                                หมายเหตุ: ยอดเงินรวมข้างต้น คำนวณเฉพาะรายการที่ได้รับการอนุมัติแล้ว 
-                                โดยมีรายการรอตรวจสอบจำนวน {filteredData.filter(d => d.status === 'pending').length} รายการ
-                            </p>
-                        )}
-    
-                    </div>
-                    {/* ==================================================== */}
+                    {filteredData.filter(d => d.status === 'pending').length > 0 && (
+                        <p className="text-[10px] mt-2 text-gray-600">
+                            หมายเหตุ: ยอดเงินรวมข้างต้น คำนวณเฉพาะรายการที่ได้รับการอนุมัติแล้ว 
+                            โดยมีรายการรอตรวจสอบจำนวน {filteredData.filter(d => d.status === 'pending').length} รายการ
+                        </p>
+                    )}
 
-        function ApprovalPanel({ donations, onApprove, onReject }) {
-            const pending = donations.filter(d => d.status === 'pending');
-            const [viewSlip, setViewSlip] = useState(null);
-            
-            return (
+                </div>
+                {/* ==================================================== */}
+
+            </div>
+        );
+    }
+
+    function ApprovalPanel({ donations, onApprove, onReject }) {
+        const pending = donations.filter(d => d.status === 'pending');
+        const [viewSlip, setViewSlip] = useState(null);
+        
+        return (
                 <div className="space-y-4 no-print">
                     {viewSlip && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setViewSlip(null)}><div className="relative max-w-3xl max-h-full"><img src={viewSlip} alt="Full Slip" className="max-w-full max-h-[90vh] rounded shadow-lg" /><button className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow" onClick={() => setViewSlip(null)}><X className="w-6 h-6" /></button></div></div>)}
                     <h2 className="text-xl font-bold flex items-center mb-4"><ShieldCheck className="w-6 h-6 mr-2 text-orange-600"/> รายการรออนุมัติ ({pending.length})</h2>
