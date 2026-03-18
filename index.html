@@ -1557,11 +1557,11 @@
                             
                             <div className="flex justify-between items-end border-b-2 border-black pb-2 mt-8 text-[16px]">
                                 <div>
-                                    <p><strong>เรื่อง:</strong> สรุปยอดเงินบริจาคประจำรอบ</p>
-                                    <p><strong>ข้อมูล ณ วันที่:</strong> {printDateDisplay}</p>
+                                    <p><strong>/strong> สรุปยอดเงินบริจาคประจำรอบ</p>
+                                    <p><strong>ข้อมูล ณ วันที่:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} เวลา {new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})} น.</p>
                                 </div>
                                 <div className="text-right">
-                                    <p><strong>วันเวลาที่ออกรายงาน:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} เวลา {new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})} น.</p>
+                                    <p><strong>วันเวลาที่ออกรายงาน:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
                                     <p><strong>ผู้พิมพ์รายงาน:</strong> {loggedInUser ? loggedInUser.name : 'ระบบอัตโนมัติ'}</p>
                                 </div>
                             </div>
@@ -1613,27 +1613,8 @@
 
                         {/* Signature Section (Print Only) */}
                         <div className="signature-section">
-                            <div className="signature-box">
-                                <p>ลงชื่อผู้จัดทำรายงาน / ผู้ตรวจสอบ</p>
-                                <div className="signature-line"></div>
-                                <p>( {loggedInUser ? loggedInUser.name : '.......................................................'} )</p>
-                                <p className="font-bold mt-1">เจ้าหน้าที่ / ผู้ดูแลระบบ</p>
-                                <p className="text-sm mt-1">วันที่ {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                            </div>
-                            <div className="signature-box">
-                                <p>ลงชื่อรับรอง / ตรวจสอบความถูกต้อง</p>
-                                <div className="signature-line"></div>
-                                <p>( ....................................................... )</p>
-                                <p className="font-bold mt-1">ไวยาวัจกร / กรรมการวัด</p>
-                                <p className="text-sm mt-1">วันที่ ....../....../..........</p>
-                            </div>
-                            <div className="signature-box">
-                                <p>ทราบ / ดำเนินการ</p>
-                                <div className="signature-line"></div>
-                                <p>( {settings.receipt?.abbotName || '.......................................................'} )</p>
-                                <p className="font-bold mt-1">เจ้าอาวาส</p>
-                                <p className="text-sm mt-1">วันที่ ....../....../..........</p>
-                            </div>
+                            
+                            
                         </div>
                     </div>
                     {/* ==================================================== */}
