@@ -1756,7 +1756,46 @@
             );
         }
 
-        const handleSave = () => { 
+function AdminSettingsPanel({ settings, onSave, onClearData }) {
+            const [config, setConfig] = useState(settings);
+            const [confirmClear, setConfirmClear] = useState('');
+            const [showClearModal, setShowClearModal] = useState(false);
+            const [clearError, setClearError] = useState(''); 
+            const [activeSection, setActiveSection] = useState('general');
+            const [isUploading, setIsUploading] = useState(false); 
+            const [isGeneratingAbout, setIsGeneratingAbout] = useState(false);
+            const [isGeneratingThankYou, setIsGeneratingThankYou] = useState(false);
+            const [openDropdown, setOpenDropdown] = useState(null);
+            const dropdownRef = useRef(null);
+
+            useEffect(() => { 
+                let newConfig = { ...settings };
+                if (!newConfig.users || newConfig.users.length === 0) {
+                    newConfig.users = [
+                        { id: '1', username: 'admin', password: settings.passwords?.admin || 'admin104', role: 'admin', name: 'Admin หลัก', permissions: ['all'] },
+                        { id: '2', username: 'staff', password: settings.passwords?.staff || '104', role: 'staff', name: 'Staff รับบริจาค', permissions: ['donate', 'dashboard'] }
+                    ];
+                }
+                if (!newConfig.lineNotify?.messageTemplate) {
+                    newConfig.lineNotify = {
+                        ...newConfig.lineNotify,
+                        messageTemplate: DEFAULT_SETTINGS.lineNotify.messageTemplate
+                    };
+                }
+                setConfig(newConfig); 
+            }, [settings]);
+
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                        setOpenDropdown(null);
+                    }
+                };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+
+            const handleSave = () => { 
                 const cleanConfig = {
                     systemStatus: String(config.systemStatus || 'open'),
                     templeName: String(config.templeName || ''),
@@ -1830,10 +1869,9 @@
                         isSpecial: Boolean(t.isSpecial || false)
                     })) : []
                 };
-
                 onSave(cleanConfig); 
             };
-            
+
             const handleAddDonationType = () => { const newType = { id: `type_${Date.now()}`, name: 'รายการใหม่', hasQuantity: false, price: 0, active: true }; setConfig({ ...config, donationTypes: [...(config.donationTypes || []), newType] }); };
             const handleRemoveDonationType = (index) => { const newTypes = [...(config.donationTypes || [])]; newTypes.splice(index, 1); setConfig({...config, donationTypes: newTypes}); };
             const handleUpdateDonationType = (index, field, value) => { const newTypes = [...(config.donationTypes || [])]; newTypes[index] = { ...newTypes[index], [field]: value }; setConfig({...config, donationTypes: newTypes}); };
@@ -2086,24 +2124,24 @@
                                     </div>
                                 </div>
                                 <div className="border-t pt-6 mt-4">
-                                    <h4 className="font-bold text-gray-700 mb-4 flex items-center"><ImageIcon className="w-4 h-4 mr-2"/> รูปลายเซ็นและตราประทับ</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <h4 className="font-bold text-gray-700 mb-4 flex items-center"><ImageIcon className="w-4 h-4 mr-2"/> รูปล็อกโก้, ลายเซ็น และตราประทับ</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div>
-                                                <label className="block text-sm font-medium mb-1">รูปโลโก้วัด (แสดงในใบเสร็จและรายงาน)</label>
-                                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
-                                                    <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={e => handleReceiptImageUpload(e, 'logoUrl')} disabled={isUploading} />
-                                                    {isUploading ? (
-                                                        <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
-                                                    ) : config.receipt?.logoUrl ? (
-                                                        <div className="relative pointer-events-none">
-                                                            <img src={config.receipt.logoUrl} className="max-h-16 mx-auto object-contain" alt="Logo" />
-                                                            <div className="mt-2 text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูปโลโก้</div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปโลโก้วัด</div>
-                                                    )}
-                                                </div>
+                                            <label className="block text-sm font-medium mb-1">รูปโลโก้วัด (แสดงในใบเสร็จและรายงาน)</label>
+                                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
+                                                <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={e => handleReceiptImageUpload(e, 'logoUrl')} disabled={isUploading} />
+                                                {isUploading ? (
+                                                    <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+                                                ) : config.receipt?.logoUrl ? (
+                                                    <div className="relative pointer-events-none">
+                                                        <img src={config.receipt.logoUrl} className="max-h-16 mx-auto object-contain" alt="Logo" />
+                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูปโลโก้</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปโลโก้วัด</div>
+                                                )}
                                             </div>
+                                        </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-1">รูปลายเซ็น (พื้นหลังใสจะดีที่สุด)</label>
                                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
