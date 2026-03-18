@@ -359,7 +359,6 @@
                 document.body.classList.add('printing-receipt');
                 const style = document.createElement('style');
                 style.id = 'receipt-print-page-style';
-                // ปรับให้มี margin เล็กน้อยป้องกันการกินขอบกระดาษของเครื่องปริ้นบางรุ่น
                 style.innerHTML = `@page { size: A4 portrait; margin: 5mm; }`;
                 document.head.appendChild(style);
 
@@ -381,8 +380,6 @@
             const printTimeStr = dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
             const amountText = convertToThaiBahtText(donation.amount);
             const rcpSettings = settings.receipt || DEFAULT_SETTINGS.receipt;
-            
-            // --- เพิ่มบรรทัดนี้เข้าไปครับ เพื่อให้ระบบรู้จัก templeLogo ---
             const templeLogo = rcpSettings.logoUrl || "https://img2.pic.in.th/pic/-Ver.3-1.png";
             
             let printPurpose = donation.purpose;
@@ -396,11 +393,15 @@
                 setIsExporting(true);
                 const element = document.getElementById('receipt-pdf-content');
                 
+                // เลื่อนหน้าจอไปบนสุดก่อนถ่ายภาพ ป้องกันพิกัดเพี้ยน
+                window.scrollTo(0, 0);
+
                 const opt = {
                     margin:       0,
                     filename:     `ใบเสร็จรับเงิน_${receiptNo}.pdf`,
                     image:        { type: 'jpeg', quality: 1.0 },
-                    html2canvas:  { scale: 2.5, useCORS: true, logging: false, windowWidth: 794 },
+                    // แก้บั๊กตัดขอบ: ลบ windowWidth ทิ้ง และใส่ scrollX, scrollY แทน
+                    html2canvas:  { scale: 2.2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
                     jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' } 
                 };
 
@@ -439,10 +440,12 @@
                     </div>
 
                     {/* Preview Area Container */}
-                    <div className="w-full max-w-[850px] flex-grow overflow-auto bg-gray-900/40 rounded-xl flex justify-center p-2 sm:p-6 hide-scrollbar">
+                    {/* แก้บั๊กตัดขอบ: เปลี่ยนจาก flex justify-center เป็น text-center */}
+                    <div className="w-full max-w-[850px] flex-grow overflow-auto bg-gray-900/40 rounded-xl p-2 sm:p-6 hide-scrollbar text-center">
                         
-                        {/* เปลี่ยนจาก height ตายตัว เป็น minHeight เพื่อป้องกันเนื้อหาล้นจนเกิดหน้าขาว */}
-                        <div id="receipt-pdf-content" className="receipt-print-zone bg-white shadow-2xl relative shrink-0"  style={{ fontFamily: "'Sarabun', sans-serif", width: '794px', minHeight: '1050px', color: '#000', boxSizing: 'border-box', overflow: 'hidden' }}>
+                        {/* แก้บั๊กตัดขอบ: เพิ่ม inline-block, text-left และ margin: 0 auto */}
+                        <div id="receipt-pdf-content" className="receipt-print-zone bg-white shadow-2xl relative shrink-0 inline-block text-left" 
+                             style={{ margin: '0 auto', fontFamily: "'Sarabun', sans-serif", width: '794px', minHeight: '1050px', color: '#000', boxSizing: 'border-box', overflow: 'hidden' }}>
                             
                             {/* กรอบเส้นขอบด้านนอก */}
                             <div className="absolute inset-[15px] border border-gray-400 z-10 pointer-events-none" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
@@ -452,24 +455,22 @@
                                 <img src={templeLogo} crossOrigin="anonymous" style={{ width: '350px' }} alt="Watermark" />
                             </div>
 
-                            {/* ลด padding ลง 30% */}
+                            {/* ลด padding ลง */}
                             <div className="relative z-20 w-full h-full p-[35px] pt-[45px] flex flex-col">
                                 
                                 {/* --- ส่วนหัว (Header) --- */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '15px', marginBottom: '15px' }}>
                                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                        {/* โลโก้ */}
-                                            <div style={{ width: '65px', height: '65px' }}>
-                                                <img src={templeLogo} crossOrigin="anonymous" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                            </div>
+                                        <div style={{ width: '65px', height: '65px' }}>
+                                            <img src={templeLogo} crossOrigin="anonymous" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                        </div>
                                         <div>
-                                            {/* ลดขนาดฟอนต์หัวกระดาษลง ~30% */}
                                             <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 4px 0', lineHeight: '1' }}>{settings.templeName}</h1>
                                             <p style={{ fontSize: '14px', margin: '0 0 2px 0', color: '#333' }}>{rcpSettings.address}</p>
                                             <p style={{ fontSize: '14px', margin: 0, fontWeight: 'bold' }}>เลขประจำตัวผู้เสียภาษีอากร: {rcpSettings.taxId}</p>
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContnt: 'center' }}>
                                         <h2 style={{ fontSize: '22px', fontWeight: 'bold', margin: '0 0 2px 0', color: '#000' }}>ใบเสร็จรับเงิน</h2>
                                         <p style={{ fontSize: '12px', margin: '0 0 8px 0', color: '#666', letterSpacing: '1px' }}>RECEIPT / TAX DEDUCTION</p>
                                         <table style={{ fontSize: '14px', marginLeft: 'auto', textAlign: 'left' }}>
@@ -514,7 +515,6 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {/* ข้อมูลรายการบรรทัดที่ 1 */}
                                             <tr>
                                                 <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', textAlign: 'center', verticalAlign: 'top' }}>1</td>
                                                 <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', verticalAlign: 'top' }}>
@@ -525,11 +525,8 @@
                                                     {(donation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </td>
                                             </tr>
-                                            {/* ช่องว่างดันตาราง */}
                                             <tr>
-                                                <td style={{ padding: '8px' }}></td>
-                                                <td style={{ padding: '8px' }}></td>
-                                                <td style={{ padding: '8px' }}></td>
+                                                <td style={{ padding: '8px' }}></td><td style={{ padding: '8px' }}></td><td style={{ padding: '8px' }}></td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -571,11 +568,9 @@
                                     </div>
                                     <div style={{ width: '35%', position: 'relative' }}>
                                         <div style={{ borderBottom: '1px solid #000', marginBottom: '8px', height: '40px', position: 'relative' }}>
-                                            {/* รูปลายเซ็น ลดขนาดลง */}
                                             {rcpSettings.signatureUrl && (
                                                 <img src={rcpSettings.signatureUrl} crossOrigin="anonymous" style={{ position: 'absolute', bottom: '2px', left: '0', right: '0', margin: 'auto', maxHeight: '55px', mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
                                             )}
-                                            {/* รูปตราประทับ ลดขนาดลง */}
                                             {rcpSettings.stampUrl && (
                                                 <img src={rcpSettings.stampUrl} crossOrigin="anonymous" style={{ position: 'absolute', top: '-35px', right: '-20px', maxHeight: '85px', mixBlendMode: 'multiply', transform: 'rotate(-15deg)', opacity: 0.8 }} alt="ตราประทับ" />
                                             )}
