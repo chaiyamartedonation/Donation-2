@@ -389,7 +389,8 @@
                 document.body.classList.add('printing-receipt');
                 const style = document.createElement('style');
                 style.id = 'receipt-print-page-style';
-                style.innerHTML = `@page { size: A4 portrait; margin: 0; }`;
+                // ปรับให้มี margin เล็กน้อยป้องกันการกินขอบกระดาษของเครื่องปริ้นบางรุ่น
+                style.innerHTML = `@page { size: A4 portrait; margin: 5mm; }`;
                 document.head.appendChild(style);
 
                 return () => {
@@ -426,7 +427,6 @@
                     margin:       0,
                     filename:     `ใบเสร็จรับเงิน_${receiptNo}.pdf`,
                     image:        { type: 'jpeg', quality: 1.0 },
-                    // ปรับสเกลให้คมชัดสูงสุด และกำหนดความกว้างเป็น A4 แนวตั้ง (794px)
                     html2canvas:  { scale: 2.5, useCORS: true, logging: false, windowWidth: 794 },
                     jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' } 
                 };
@@ -468,43 +468,46 @@
                     {/* Preview Area Container */}
                     <div className="w-full max-w-[850px] flex-grow overflow-auto bg-gray-900/40 rounded-xl flex justify-center p-2 sm:p-6 hide-scrollbar">
                         
-                        {/* ACTUAL A4 PORTRAIT EXACT PIXELS (794 x 1123) */}
+                        {/* เปลี่ยนจาก height ตายตัว เป็น minHeight เพื่อป้องกันเนื้อหาล้นจนเกิดหน้าขาว */}
                         <div id="receipt-pdf-content" className="bg-white shadow-2xl relative shrink-0" 
-                             style={{ fontFamily: "'Sarabun', sans-serif", width: '794px', height: '1123px', color: '#000', boxSizing: 'border-box', overflow: 'hidden' }}>
+                             style={{ fontFamily: "'Sarabun', sans-serif", width: '794px', minHeight: '1050px', color: '#000', boxSizing: 'border-box', overflow: 'hidden' }}>
                             
-                            {/* กรอบเส้นขอบด้านนอก (Outer Border) แบบบางทางการ */}
+                            {/* กรอบเส้นขอบด้านนอก */}
                             <div className="absolute inset-[15px] border border-gray-400 z-10 pointer-events-none" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
                             
                             {/* ลายน้ำตรงกลาง */}
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0">
-                                <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" crossOrigin="anonymous" style={{ width: '400px' }} alt="Watermark" />
+                                <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" crossOrigin="anonymous" style={{ width: '350px' }} alt="Watermark" />
                             </div>
 
-                            <div className="relative z-20 w-full h-full p-[50px] pt-[60px] flex flex-col">
+                            {/* ลด padding ลง 30% */}
+                            <div className="relative z-20 w-full h-full p-[35px] pt-[45px] flex flex-col">
                                 
-                                {/* --- ส่วนหัว (Header) แบบฟอร์มใบเสร็จห้างสรรพสินค้า --- */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '20px', marginBottom: '20px' }}>
-                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                                        <div style={{ width: '90px', height: '90px' }}>
+                                {/* --- ส่วนหัว (Header) --- */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '15px', marginBottom: '15px' }}>
+                                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                        {/* ลดขนาดโลโก้ */}
+                                        <div style={{ width: '65px', height: '65px' }}>
                                             <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" crossOrigin="anonymous" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                         </div>
                                         <div>
-                                            <h1 style={{ fontSize: '32px', fontWeight: 'bold', margin: '0 0 5px 0', lineHeight: '1' }}>{settings.templeName}</h1>
-                                            <p style={{ fontSize: '18px', margin: '0 0 2px 0', color: '#333' }}>{rcpSettings.address}</p>
-                                            <p style={{ fontSize: '18px', margin: 0, fontWeight: 'bold' }}>เลขประจำตัวผู้เสียภาษีอากร: {rcpSettings.taxId}</p>
+                                            {/* ลดขนาดฟอนต์หัวกระดาษลง ~30% */}
+                                            <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 4px 0', lineHeight: '1' }}>{settings.templeName}</h1>
+                                            <p style={{ fontSize: '14px', margin: '0 0 2px 0', color: '#333' }}>{rcpSettings.address}</p>
+                                            <p style={{ fontSize: '14px', margin: 0, fontWeight: 'bold' }}>เลขประจำตัวผู้เสียภาษีอากร: {rcpSettings.taxId}</p>
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                        <h2 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0 0 2px 0', color: '#000' }}>ใบเสร็จรับเงิน</h2>
-                                        <p style={{ fontSize: '16px', margin: '0 0 10px 0', color: '#666', letterSpacing: '1px' }}>RECEIPT / TAX DEDUCTION</p>
-                                        <table style={{ fontSize: '18px', marginLeft: 'auto', textAlign: 'left' }}>
+                                        <h2 style={{ fontSize: '22px', fontWeight: 'bold', margin: '0 0 2px 0', color: '#000' }}>ใบเสร็จรับเงิน</h2>
+                                        <p style={{ fontSize: '12px', margin: '0 0 8px 0', color: '#666', letterSpacing: '1px' }}>RECEIPT / TAX DEDUCTION</p>
+                                        <table style={{ fontSize: '14px', marginLeft: 'auto', textAlign: 'left' }}>
                                             <tbody>
                                                 <tr>
-                                                    <td style={{ paddingRight: '15px', fontWeight: 'bold' }}>เลขที่ (No.) :</td>
+                                                    <td style={{ paddingRight: '12px', fontWeight: 'bold' }}>เลขที่ (No.) :</td>
                                                     <td>{receiptNo}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td style={{ paddingRight: '15px', fontWeight: 'bold' }}>วันที่ (Date) :</td>
+                                                    <td style={{ paddingRight: '12px', fontWeight: 'bold' }}>วันที่ (Date) :</td>
                                                     <td>{printDateStr} {printTimeStr} น.</td>
                                                 </tr>
                                             </tbody>
@@ -513,66 +516,66 @@
                                 </div>
 
                                 {/* --- ส่วนข้อมูลลูกค้า/ผู้บริจาค (Customer Info) --- */}
-                                <div style={{ marginBottom: '20px', fontSize: '20px' }}>
+                                <div style={{ marginBottom: '15px', fontSize: '16px' }}>
                                     <table style={{ width: '100%' }}>
                                         <tbody>
                                             <tr>
-                                                <td style={{ width: '150px', fontWeight: 'bold', paddingBottom: '8px' }}>ได้รับเงินจาก :</td>
-                                                <td style={{ borderBottom: '1px dotted #666', paddingBottom: '8px' }}>{donation.name}</td>
+                                                <td style={{ width: '120px', fontWeight: 'bold', paddingBottom: '6px' }}>ได้รับเงินจาก :</td>
+                                                <td style={{ borderBottom: '1px dotted #666', paddingBottom: '6px' }}>{donation.name}</td>
                                             </tr>
                                             <tr>
-                                                <td style={{ fontWeight: 'bold', paddingTop: '8px' }}>ชำระโดย :</td>
-                                                <td style={{ paddingTop: '8px' }}>{donation.method} <span style={{ marginLeft: '30px', color: '#666', fontSize: '18px' }}>(อ้างอิงรหัสบันทึกระบบ: {donation.id.slice(-8)})</span></td>
+                                                <td style={{ fontWeight: 'bold', paddingTop: '6px' }}>ชำระโดย :</td>
+                                                <td style={{ paddingTop: '6px' }}>{donation.method} <span style={{ marginLeft: '20px', color: '#666', fontSize: '14px' }}>(อ้างอิงรหัส: {donation.id.slice(-8)})</span></td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
 
-                                {/* --- ส่วนตารางรายการ (Items Table) ใช้เส้นประ (Dashed Line) --- */}
+                                {/* --- ส่วนตารางรายการ (Items Table) --- */}
                                 <div style={{ flexGrow: 1 }}>
-                                    <table style={{ width: '100%', fontSize: '20px', borderCollapse: 'collapse' }}>
+                                    <table style={{ width: '100%', fontSize: '16px', borderCollapse: 'collapse' }}>
                                         <thead>
                                             <tr>
-                                                <th style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '12px 10px', textAlign: 'center', width: '10%' }}>ลำดับ<br/><span style={{fontSize: '14px', color: '#666', fontWeight: 'normal'}}>Item</span></th>
-                                                <th style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '12px 10px', textAlign: 'left' }}>รายการ<br/><span style={{fontSize: '14px', color: '#666', fontWeight: 'normal'}}>Description</span></th>
-                                                <th style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '12px 10px', textAlign: 'right', width: '25%' }}>จำนวนเงิน (บาท)<br/><span style={{fontSize: '14px', color: '#666', fontWeight: 'normal'}}>Amount (THB)</span></th>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '10px 8px', textAlign: 'center', width: '10%' }}>ลำดับ<br/><span style={{fontSize: '11px', color: '#666', fontWeight: 'normal'}}>Item</span></th>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '10px 8px', textAlign: 'left' }}>รายการ<br/><span style={{fontSize: '11px', color: '#666', fontWeight: 'normal'}}>Description</span></th>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '10px 8px', textAlign: 'right', width: '25%' }}>จำนวนเงิน (บาท)<br/><span style={{fontSize: '11px', color: '#666', fontWeight: 'normal'}}>Amount (THB)</span></th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {/* ข้อมูลรายการบรรทัดที่ 1 */}
                                             <tr>
-                                                <td style={{ borderBottom: '1px dashed #999', padding: '15px 10px', textAlign: 'center', verticalAlign: 'top' }}>1</td>
-                                                <td style={{ borderBottom: '1px dashed #999', padding: '15px 10px', verticalAlign: 'top' }}>
+                                                <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', textAlign: 'center', verticalAlign: 'top' }}>1</td>
+                                                <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', verticalAlign: 'top' }}>
                                                     {printPurpose}
-                                                    {donation.generalNote && <div style={{ fontSize: '16px', color: '#666', marginTop: '5px' }}>หมายเหตุ: {donation.generalNote}</div>}
+                                                    {donation.generalNote && <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>หมายเหตุ: {donation.generalNote}</div>}
                                                 </td>
-                                                <td style={{ borderBottom: '1px dashed #999', padding: '15px 10px', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold' }}>
+                                                <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold' }}>
                                                     {(donation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </td>
                                             </tr>
-                                            {/* สร้างพื้นที่ว่างดันให้ยอดรวมไปอยู่ด้านล่างสุดของตาราง */}
+                                            {/* ช่องว่างดันตาราง */}
                                             <tr>
-                                                <td style={{ padding: '10px' }}></td>
-                                                <td style={{ padding: '10px' }}></td>
-                                                <td style={{ padding: '10px' }}></td>
+                                                <td style={{ padding: '8px' }}></td>
+                                                <td style={{ padding: '8px' }}></td>
+                                                <td style={{ padding: '8px' }}></td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
 
                                 {/* --- ส่วนสรุปยอด (Totals) --- */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px', borderTop: '2px solid #000', paddingTop: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px', borderTop: '2px solid #000', paddingTop: '15px' }}>
                                     <div style={{ width: '60%' }}>
-                                        <div style={{ backgroundColor: '#f1f5f9', padding: '10px 20px', borderRadius: '5px', textAlign: 'center', fontWeight: 'bold', fontSize: '20px', border: '1px solid #cbd5e1' }} style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <div style={{ backgroundColor: '#f1f5f9', padding: '8px 15px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', border: '1px solid #cbd5e1' }} style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             ( {amountText} )
                                         </div>
                                     </div>
                                     <div style={{ width: '35%' }}>
-                                        <table style={{ width: '100%', fontSize: '22px' }}>
+                                        <table style={{ width: '100%', fontSize: '16px' }}>
                                             <tbody>
                                                 <tr>
-                                                    <td style={{ fontWeight: 'bold', textAlign: 'left', paddingBottom: '10px' }}>ยอดรวมสุทธิ</td>
-                                                    <td style={{ fontWeight: 'bold', textAlign: 'right', paddingBottom: '10px', borderBottom: '3px double #000' }}>
+                                                    <td style={{ fontWeight: 'bold', textAlign: 'left', paddingBottom: '8px' }}>ยอดรวมสุทธิ</td>
+                                                    <td style={{ fontWeight: 'bold', textAlign: 'right', paddingBottom: '8px', borderBottom: '3px double #000' }}>
                                                         {(donation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                     </td>
                                                 </tr>
@@ -582,27 +585,27 @@
                                 </div>
 
                                 {/* --- ข้อความอ้างอิงสรรพากร --- */}
-                                <div style={{ marginTop: '30px', fontSize: '16px', color: '#4b5563', textAlign: 'center' }}>
-                                    <p style={{ margin: '0 0 5px 0' }}>" สุโข ปุญฺญสฺส อุจฺจโย : การสั่งสมบุญนำสุขมาให้ "</p>
+                                <div style={{ marginTop: '20px', fontSize: '13px', color: '#4b5563', textAlign: 'center' }}>
+                                    <p style={{ margin: '0 0 4px 0' }}>" สุโข ปุญฺญสฺส อุจฺจโย : การสั่งสมบุญนำสุขมาให้ "</p>
                                     <p style={{ margin: 0, fontWeight: 'bold', color: '#000' }}>* เอกสารฉบับนี้เป็นใบเสร็จรับเงินที่สมบูรณ์ สามารถนำไปใช้เป็นหลักฐานประกอบการลดหย่อนภาษีได้ (e-Donation)</p>
                                 </div>
 
                                 {/* --- ส่วนลายเซ็น (Signatures) --- */}
-                                <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '50px', fontSize: '18px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '35px', fontSize: '14px', textAlign: 'center' }}>
                                     <div style={{ width: '35%' }}>
-                                        <div style={{ borderBottom: '1px solid #000', marginBottom: '10px', height: '60px' }}></div>
+                                        <div style={{ borderBottom: '1px solid #000', marginBottom: '8px', height: '40px' }}></div>
                                         <p style={{ margin: 0, fontWeight: 'bold' }}>( {donation.name} )</p>
                                         <p style={{ margin: 0 }}>ผู้บริจาค / ผู้ชำระเงิน</p>
                                     </div>
                                     <div style={{ width: '35%', position: 'relative' }}>
-                                        <div style={{ borderBottom: '1px solid #000', marginBottom: '10px', height: '60px', position: 'relative' }}>
-                                            {/* รูปลายเซ็น */}
+                                        <div style={{ borderBottom: '1px solid #000', marginBottom: '8px', height: '40px', position: 'relative' }}>
+                                            {/* รูปลายเซ็น ลดขนาดลง */}
                                             {rcpSettings.signatureUrl && (
-                                                <img src={rcpSettings.signatureUrl} crossOrigin="anonymous" style={{ position: 'absolute', bottom: '2px', left: '0', right: '0', margin: 'auto', maxHeight: '75px', mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
+                                                <img src={rcpSettings.signatureUrl} crossOrigin="anonymous" style={{ position: 'absolute', bottom: '2px', left: '0', right: '0', margin: 'auto', maxHeight: '55px', mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
                                             )}
-                                            {/* รูปตราประทับ */}
+                                            {/* รูปตราประทับ ลดขนาดลง */}
                                             {rcpSettings.stampUrl && (
-                                                <img src={rcpSettings.stampUrl} crossOrigin="anonymous" style={{ position: 'absolute', top: '-50px', right: '-30px', maxHeight: '120px', mixBlendMode: 'multiply', transform: 'rotate(-15deg)', opacity: 0.8 }} alt="ตราประทับ" />
+                                                <img src={rcpSettings.stampUrl} crossOrigin="anonymous" style={{ position: 'absolute', top: '-35px', right: '-20px', maxHeight: '85px', mixBlendMode: 'multiply', transform: 'rotate(-15deg)', opacity: 0.8 }} alt="ตราประทับ" />
                                             )}
                                         </div>
                                         <p style={{ margin: 0, fontWeight: 'bold' }}>( {rcpSettings.abbotName} )</p>
