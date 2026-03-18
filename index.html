@@ -1153,7 +1153,7 @@
         // ==========================================
         // DataTables-style Dashboard
         // ==========================================
-        function Dashboard({ donations, userRole, onUpdateDonation, onDeleteDonation, showNotification, settings }) {
+        function Dashboard({ donations, userRole, onUpdateDonation, onDeleteDonation, showNotification, settings, loggedInUser }) {
             const [editingDonation, setEditingDonation] = useState(null);
             const [viewSlip, setViewSlip] = useState(null);
             const [itemToDelete, setItemToDelete] = useState(null); 
@@ -2462,6 +2462,7 @@
                                 onDeleteDonation={(id) => { onDelete(id); }}
                                 showNotification={showNotification}
                                 settings={settings}
+                                loggedInUser={loggedInUser} 
                             />
                         )}
                         {activeTab === 'announcer' && (
