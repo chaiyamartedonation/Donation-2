@@ -1589,29 +1589,29 @@
                                     <h2 className="text-[18px] font-bold">{settings.templeName}</h2>
                                 </div>
                             </div>
-                    
+    
                             {/* ข้อมูลเอกสาร */}
                             <div className="text-[16px] mt-6 leading-relaxed">
                                 <p><strong>ส่วนราชการ:</strong> {settings.templeName}</p>
                                 <p><strong>ที่:</strong> ......................................................</p>
                                 <p><strong>วันที่:</strong> {printDateDisplay}</p>
                             </div>
-                    
+    
                             {/* เรื่อง */}
                             <div className="mt-4 text-[16px]">
                                 <p><strong>เรื่อง:</strong> รายงานสรุปยอดเงินบริจาคประจำรอบ</p>
                                 <p><strong>เรียน:</strong> เจ้าอาวาส / ผู้มีอำนาจอนุมัติ</p>
                             </div>
-                    
+    
                             {/* เนื้อความ */}
                             <div className="mt-4 text-[16px] leading-loose">
                                 <p>
-                                    ตามที่ {settings.templeName} ได้ดำเนินการรับบริจาคเพื่อสนับสนุนกิจกรรมและการดำเนินงานต่าง ๆ 
+                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ {settings.templeName} ได้ดำเนินการรับบริจาคเพื่อสนับสนุนกิจกรรมและการดำเนินงานต่าง ๆ 
                                     นั้น บัดนี้ได้ดำเนินการสรุปยอดเงินบริจาคประจำรอบเรียบร้อยแล้ว 
                                     รายละเอียดปรากฏตามตารางด้านล่างนี้
                                 </p>
                             </div>
-                    
+    
                             <div className="flex justify-between items-end border-b-2 border-black pb-2 mt-6 text-[14px]">
                                 <div>
                                     <p><strong>ข้อมูล ณ วันที่:</strong> {printDateDisplay}</p>
@@ -1630,7 +1630,7 @@
                                 </div>
                             </div>
                         </div>
-                    
+    
                         {/* ตาราง */}
                         <table className="print-table">
                             <thead>
@@ -1678,7 +1678,7 @@
                                         </td>
                                     </tr>
                                 )}
-                    
+    
                                 {filteredData.length > 0 && (
                                     <tr className="total-row font-bold">
                                         <td colSpan="5" className="text-right pr-4 py-3">
@@ -1693,7 +1693,7 @@
                                 )}
                             </tbody>
                         </table>
-                    
+    
                         {/* หมายเหตุ */}
                         {filteredData.filter(d => d.status === 'pending').length > 0 && (
                             <p className="text-[14px] mt-3 text-gray-600">
@@ -1701,8 +1701,9 @@
                                 โดยมีรายการรอตรวจสอบจำนวน {filteredData.filter(d => d.status === 'pending').length} รายการ
                             </p>
                         )}
-                    
-                       {/* ==================================================== */}
+    
+                    </div>
+                    {/* ==================================================== */}
 
                 </div>
             );
