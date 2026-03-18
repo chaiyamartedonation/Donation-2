@@ -3211,72 +3211,22 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
             const handleUpdateSettings = async (newSettings) => {
                 if (!user) return;
                 try {
-                    // ท่าไม้ตายขั้นสุด: ดึงข้อมูลและบังคับแปลงเป็น String (ข้อความ) เท่านั้น
-                    // ถ้ามี "ไฟล์" หรือ "Object ประหลาด" หลุดมา มันจะถูกทำลายทิ้งทันที
-                    const pureData = {
-                        systemStatus: typeof newSettings.systemStatus === 'string' ? newSettings.systemStatus : 'open',
-                        templeName: typeof newSettings.templeName === 'string' ? newSettings.templeName : 'วัดไชยามาตย์',
-                        themeColor: typeof newSettings.themeColor === 'string' ? newSettings.themeColor : 'orange',
-                        fontFamily: typeof newSettings.fontFamily === 'string' ? newSettings.fontFamily : 'Prompt',
-                        bannerUrl: typeof newSettings.bannerUrl === 'string' ? newSettings.bannerUrl : '',
-                        qrCodeUrl: typeof newSettings.qrCodeUrl === 'string' ? newSettings.qrCodeUrl : '',
-                        marqueeText: typeof newSettings.marqueeText === 'string' ? newSettings.marqueeText : '',
-                        requireSlip: newSettings.requireSlip !== false,
-                        about: {
-                            title: typeof newSettings.about?.title === 'string' ? newSettings.about.title : '',
-                            heading: typeof newSettings.about?.heading === 'string' ? newSettings.about.heading : '',
-                            highlightWord: typeof newSettings.about?.highlightWord === 'string' ? newSettings.about.highlightWord : '',
-                            content: typeof newSettings.about?.content === 'string' ? newSettings.about.content : '',
-                            imageUrl: typeof newSettings.about?.imageUrl === 'string' ? newSettings.about.imageUrl : ''
-                        },
-                        // ซ่อมแซม receipt ใหม่ทั้งหมด รับเฉพาะ String เท่านั้น
-                        receipt: {
-                            logoUrl: typeof newSettings.receipt?.logoUrl === 'string' ? newSettings.receipt.logoUrl : '',
-                            taxId: typeof newSettings.receipt?.taxId === 'string' ? newSettings.receipt.taxId : '',
-                            abbotName: typeof newSettings.receipt?.abbotName === 'string' ? newSettings.receipt.abbotName : '',
-                            address: typeof newSettings.receipt?.address === 'string' ? newSettings.receipt.address : '',
-                            defaultPurpose: typeof newSettings.receipt?.defaultPurpose === 'string' ? newSettings.receipt.defaultPurpose : '',
-                            signatureUrl: typeof newSettings.receipt?.signatureUrl === 'string' ? newSettings.receipt.signatureUrl : '',
-                            stampUrl: typeof newSettings.receipt?.stampUrl === 'string' ? newSettings.receipt.stampUrl : ''
-                        },
-                        emailNotify: {
-                            enabled: newSettings.emailNotify?.enabled === true,
-                            serviceId: typeof newSettings.emailNotify?.serviceId === 'string' ? newSettings.emailNotify.serviceId : '',
-                            templateId: typeof newSettings.emailNotify?.templateId === 'string' ? newSettings.emailNotify.templateId : '',
-                            publicKey: typeof newSettings.emailNotify?.publicKey === 'string' ? newSettings.emailNotify.publicKey : '',
-                            adminEmail: typeof newSettings.emailNotify?.adminEmail === 'string' ? newSettings.emailNotify.adminEmail : ''
-                        },
-                        lineNotify: {
-                            enabled: newSettings.lineNotify?.enabled === true,
-                            webhookUrl: typeof newSettings.lineNotify?.webhookUrl === 'string' ? newSettings.lineNotify.webhookUrl : '',
-                            targetIds: typeof newSettings.lineNotify?.targetIds === 'string' ? newSettings.lineNotify.targetIds : '',
-                            messageTemplate: typeof newSettings.lineNotify?.messageTemplate === 'string' ? newSettings.lineNotify.messageTemplate : ''
-                        },
-                        passwords: {
-                            editPin: typeof newSettings.passwords?.editPin === 'string' ? newSettings.passwords.editPin : '104'
-                        },
-                        bankInfo: {
-                            bankName: typeof newSettings.bankInfo?.bankName === 'string' ? newSettings.bankInfo.bankName : '',
-                            accountName: typeof newSettings.bankInfo?.accountName === 'string' ? newSettings.bankInfo.accountName : '',
-                            accountNumber: typeof newSettings.bankInfo?.accountNumber === 'string' ? newSettings.bankInfo.accountNumber : ''
-                        },
-                        contact: {
-                            phone: typeof newSettings.contact?.phone === 'string' ? newSettings.contact.phone : '',
-                            address: typeof newSettings.contact?.address === 'string' ? newSettings.contact.address : '',
-                            facebook: typeof newSettings.contact?.facebook === 'string' ? newSettings.contact.facebook : '',
-                            line: typeof newSettings.contact?.line === 'string' ? newSettings.contact.line : ''
-                        },
-                        messages: {
-                            thankYou: typeof newSettings.messages?.thankYou === 'string' ? newSettings.messages.thankYou : ''
-                        },
-                        users: Array.isArray(newSettings.users) ? newSettings.users : [],
-                        donationTypes: Array.isArray(newSettings.donationTypes) ? newSettings.donationTypes : []
-                    };
+                    // ด่านที่ 1: ทำความสะอาดข้อมูลทั้งหมด 
+                    // (แปลงไป-กลับ เพื่อฆ่าไวรัสและ Object ขยะทิ้ง 100% ป้องกัน Error: invalid nested entity)
+                    const cleanSettings = JSON.parse(JSON.stringify(newSettings));
+                    
+                    // ด่านที่ 2: ตรวจสอบขนาดข้อมูลก่อนส่งไป Firebase
+                    // (ป้องกัน Error: exceeds the maximum allowed size of 1,048,576 bytes)
+                    const dataSize = new Blob([JSON.stringify(cleanSettings)]).size;
+                    if (dataSize > 950000) { // ถ้าข้อมูลใหญ่เกิน ~950KB
+                        throw new Error("ขนาดรูปรวมกันใหญ่เกิน 1MB กรุณาอัปโหลดรูป (หน้าปก/โลโก้/ลายเซ็น) ใหม่อีกครั้ง เพื่อให้ระบบย่อขนาดให้ครับ");
+                    }
 
-                    await setDoc(doc(db, 'settings', 'config'), pureData);
+                    // ด่านที่ 3: ส่งข้อมูลที่สะอาดและขนาดผ่านเกณฑ์เข้าฐานข้อมูล
+                    await setDoc(doc(db, 'settings', 'config'), cleanSettings);
                     showNotification('บันทึกการตั้งค่าระบบเรียบร้อย');
                 } catch (e) {
-                    console.error("Firebase Save Error:", e);
+                    console.error("Firebase Update Error:", e);
                     showNotification("ตั้งค่าไม่สำเร็จ: " + e.message, 'error');
                 }
             };
