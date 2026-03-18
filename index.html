@@ -84,17 +84,14 @@
         /* ========================================= */
         /* CSS สำหรับการพิมพ์ (REPORT & RECEIPT)       */
         /* ========================================= */
-        @media screen {
-            .print-only { display: none !important; }
-        }
-
-        @media print {
+       @media print {
             body {
                 background: white !important; 
                 margin: 0 !important; 
                 padding: 0 !important;
                 -webkit-print-color-adjust: exact !important; 
                 print-color-adjust: exact !important;
+                font-family: 'Sarabun', sans-serif !important; /* บังคับใช้ฟอนต์ทางการ */
             }
 
             .no-print { display: none !important; }
@@ -119,25 +116,79 @@
             .print-table { 
                 width: 100% !important; 
                 border-collapse: collapse !important; 
-                page-break-inside: auto !important;
                 margin-bottom: 30px !important;
             }
-            .print-table tr { 
+            /* ป้องกันไม่ให้ตารางหรือแถวถูกตัดขาดกลางหน้า */
+            .print-table, .print-table tr, .signature-section { 
                 page-break-inside: avoid !important; 
-                page-break-after: auto !important; 
+                break-inside: avoid !important;
             }
             .print-table thead { display: table-header-group !important; }
-            .print-table th, .print-table td { 
-                border: 1px solid #000 !important; 
-                padding: 8px !important; 
-                font-size: 14px !important; 
+            
+            /* ปรับแต่งหัวตาราง (เส้นทึบ) */
+            .print-table thead th { 
+                border-top: 2px solid #000 !important; 
+                border-bottom: 1px solid #000 !important; 
+                border-left: none !important;
+                border-right: none !important;
+                padding: 10px 8px !important; 
+                font-size: 16px !important; /* ขนาดอักษรมาตรฐาน 16pt */
+                font-weight: bold !important; 
+                text-align: center; 
+                color: #000 !important;
+                background-color: transparent !important;
+            }
+            
+            /* ปรับแต่งเนื้อหาตาราง (เส้นประ) */
+            .print-table tbody td { 
+                border-top: none !important;
+                border-bottom: 1px dashed #666 !important; /* เส้นประระหว่างบรรทัด */
+                border-left: none !important;
+                border-right: none !important;
+                padding: 10px 8px !important; 
+                font-size: 16px !important; /* ขนาดอักษรทางการ 16pt */
+                color: #000 !important;
+            }
+
+            /* บรรทัดรวมยอด ให้เป็นเส้นทึบและเส้นคู่ */
+            .print-table tbody tr.total-row td {
+                border-top: 1px solid #000 !important;
+                border-bottom: 3px double #000 !important;
+                font-weight: bold !important;
+                font-size: 16px !important;
+            }
+
+            .signature-section { 
+                display: flex !important; 
+                margin-top: 60px !important; 
+                justify-content: space-around; 
+                font-size: 16px !important; /* ขนาดอักษรทางการ */
+            }
+            .signature-box { text-align: center; width: 40%; color: black !important; }
+            .signature-line { border-bottom: 1px dotted black; width: 80%; margin: 40px auto 10px auto; height: 1px; }
+
+            /* --- 2. การพิมพ์ใบเสร็จ (Receipt A4 Landscape) --- */
+            body.printing-receipt * { visibility: hidden; }
+            body.printing-receipt .receipt-print-zone, 
+            body.printing-receipt .receipt-print-zone * { visibility: visible; }
+            
+            body.printing-receipt .receipt-print-zone {
+                position: absolute !important; 
+                left: 0 !important; 
+                top: 0 !important; 
+                width: 297mm !important;
+                height: 210mm !important;
+                margin: 0 !important; 
+                padding: 15mm !important;
+                box-shadow: none !important;
+                background: white !important;
+            }
+            
+            .receipt-print-zone * {
+                font-family: 'Sarabun', sans-serif !important; 
                 color: black !important;
             }
-            .print-table th { background-color: #f0f0f0 !important; font-weight: bold !important; text-align: center; }
-
-            .signature-section { display: flex !important; page-break-inside: avoid !important; margin-top: 50px !important; justify-content: space-between; }
-            .signature-box { text-align: center; width: 40%; color: black !important; }
-            .signature-line { border-bottom: 1px dotted black; width: 80%; margin: 30px auto 10px auto; height: 1px; }
+        }
 
             /* --- 2. การพิมพ์ใบเสร็จ (Receipt A4 Landscape) --- */
             body.printing-receipt * { visibility: hidden; }
@@ -1545,90 +1596,100 @@
                     {/* ==================================================== */}
                     {/* PRINT ONLY SECTION (รายงาน A4 ถูกดึงมาโชว์เฉพาะตอนกดพิมพ์เท่านั้น) */}
                     {/* ==================================================== */}
-                    <div className="print-container print-only">
+                  {/* ==================================================== */}
+                    {/* PRINT ONLY SECTION (รายงาน A4 ถูกดึงมาโชว์เฉพาะตอนกดพิมพ์เท่านั้น) */}
+                    {/* ==================================================== */}
+                    <div className="print-container print-only" style={{ fontFamily: "'Sarabun', sans-serif" }}>
                         {/* OFFICIAL HEADER (Print Only) */}
-                        <div className="print-header-official">
-                            <div className="mb-4 text-center w-full">
-                                <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" alt="Logo" style={{ height: '100px', display: 'inline-block' }} />
-                            </div>
-                            <h1 className="text-2xl font-bold mb-1">บันทึกรายงานสรุปยอดบริจาค</h1>
-                            <h2 className="text-xl font-bold mb-1">{settings.templeName}</h2>
-                            <p className="text-sm">{settings.contact?.address}</p>
-                            <div className="flex justify-between items-end mt-4 border-b border-black pb-2">
-                                <div className="text-sm text-left">
-                                    <strong>สิ่งที่ส่งมาด้วย:</strong> รายละเอียดการรับบริจาค<br/>
-                                    <strong>ช่วงเวลาข้อมูล:</strong> {printDateDisplay}
+                        <div className="print-header-official mb-6">
+                            <div className="flex items-center justify-center mb-4 relative">
+                                <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" alt="Logo" style={{ height: '80px', position: 'absolute', left: '0' }} />
+                                <div className="text-center w-full">
+                                    <h1 className="text-[22px] font-bold text-gray-900 leading-tight">รายงานสรุปยอดรับบริจาค</h1>
+                                    <h2 className="text-[20px] font-bold text-gray-900">{settings.templeName}</h2>
                                 </div>
-                                <div className="text-sm text-right">
-                                    <strong>วันที่พิมพ์:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}<br/>
-                                    <strong>เวลา:</strong> {new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})} น.
+                            </div>
+                            
+                            <div className="flex justify-between items-end border-b-2 border-black pb-2 mt-8 text-[16px]">
+                                <div>
+                                    <p><strong>เรื่อง:</strong> สรุปยอดเงินบริจาคประจำรอบ</p>
+                                    <p><strong>ข้อมูล ณ วันที่:</strong> {printDateDisplay}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p><strong>วันเวลาที่ออกรายงาน:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} เวลา {new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})} น.</p>
+                                    <p><strong>ผู้พิมพ์รายงาน:</strong> {loggedInUser ? loggedInUser.name : 'ระบบอัตโนมัติ'}</p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Official Summary (Print Only) */}
-                        <div className="print-summary-official">
-                            <h3 className="font-bold border-b border-black mb-2 pb-1">สรุปภาพรวม ({printDateDisplay})</h3>
-                            <div className="flex justify-between text-sm">
-                                <div><span>จำนวนรายการทั้งหมด:</span> <span className="font-bold ml-2">{filteredData.length} รายการ</span></div>
-                                <div><span>ยอดเงินรวมสุทธิ (อนุมัติแล้ว):</span> <span className="font-bold ml-2">{totalAmount.toLocaleString()} บาท</span></div>
-                            </div>
-                        </div>
-
-                        {/* ดึงข้อมูลแบบเต็ม ไม่แบ่งหน้า มาสร้างตารางเพื่อพิมพ์ */}
+                        {/* ตารางรายงาน */}
                         <table className="print-table">
                             <thead>
                                 <tr>
                                     <th className="w-12 text-center">ลำดับ</th>
-                                    <th className="w-32 text-left">วัน-เวลา</th>
-                                    <th className="text-left">ผู้บริจาค</th>
-                                    <th className="text-left">รายการบริจาค</th>
-                                    <th className="w-24 text-right">ยอดเงิน</th>
-                                    <th className="w-20 text-center">ช่องทาง</th>
-                                    <th className="w-24 text-left">ผู้บันทึก</th>
+                                    <th className="w-32 text-left">วัน - เวลา</th>
+                                    <th className="w-48 text-left">นามผู้บริจาค</th>
+                                    <th className="text-left">รายการ</th>
+                                    <th className="w-24 text-center">ช่องทาง</th>
+                                    <th className="w-24 text-right">จำนวนเงิน (บาท)</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredData.map((d, index) => (
+                                {filteredData.length > 0 ? filteredData.map((d, index) => (
                                     <tr key={d.id}>
                                         <td className="text-center">{index + 1}</td>
                                         <td>{d.dateTime ? new Date(d.dateTime).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
                                         <td>{d.name}</td>
-                                        <td>{d.purpose} {d.roongTaanDate && `(โรงทาน: ${d.roongTaanDate})`}</td>
-                                        <td className="text-right">{(d.amount || 0).toLocaleString()}</td>
+                                        <td>{d.purpose} {d.roongTaanDate && <span className="text-gray-500"> (รท. {d.roongTaanDate})</span>}</td>
                                         <td className="text-center">{d.method}</td>
-                                        <td>{d.recordedBy || 'ออนไลน์'}</td>
+                                        <td className="text-right">{(d.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                     </tr>
-                                ))}
-                                {/* แถวรวมยอดพิมพ์ท้ายตาราง */}
+                                )) : (
+                                    <tr>
+                                        <td colSpan="6" className="text-center py-4">ไม่พบข้อมูลในรอบที่กำหนด</td>
+                                    </tr>
+                                )}
+                                {/* แถวรวมยอด (มี class total-row เพื่อดึง CSS เส้นทึบ/เส้นคู่) */}
                                 {filteredData.length > 0 && (
-                                    <tr style={{ backgroundColor: '#f9fafb', fontWeight: 'bold' }}>
-                                        <td colSpan="4" className="text-right pr-4">รวมยอดเงินบริจาคทั้งสิ้น (ตามข้อมูลด้านบน)</td>
-                                        <td className="text-right" style={{ borderBottom: '3px double #000' }}>{totalAmount.toLocaleString()}</td>
-                                        <td colSpan="2"></td>
+                                    <tr className="total-row">
+                                        <td colSpan="5" className="text-right pr-4 py-3">รวมยอดเงินบริจาคสุทธิทั้งสิ้น</td>
+                                        <td className="text-right py-3">{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
 
+                        {/* คำอธิบายสถานะเพิ่มเติม (ถ้ามีรายการรอตรวจ) */}
+                        {filteredData.filter(d => d.status === 'pending').length > 0 && (
+                            <p className="text-[14px] mt-2 text-gray-600">
+                                * หมายเหตุ: ยอดเงินรวมข้างต้น คำนวณเฉพาะรายการที่ได้รับการอนุมัติแล้วเท่านั้น (มีรายการรอตรวจสอบอีก {filteredData.filter(d => d.status === 'pending').length} รายการ)
+                            </p>
+                        )}
+
                         {/* Signature Section (Print Only) */}
                         <div className="signature-section">
                             <div className="signature-box">
-                                <p>จึงเรียนมาเพื่อโปรดทราบ</p>
+                                <p>ลงชื่อผู้จัดทำรายงาน / ผู้ตรวจสอบ</p>
                                 <div className="signature-line"></div>
-                                <p>( นายนพดล  สันป่าเป้า )</p>
-                                <p className="font-bold mt-1">ไวยาวัจกร</p>
+                                <p>( {loggedInUser ? loggedInUser.name : '.......................................................'} )</p>
+                                <p className="font-bold mt-1">เจ้าหน้าที่ / ผู้ดูแลระบบ</p>
                                 <p className="text-sm mt-1">วันที่ {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            </div>
+                            <div className="signature-box">
+                                <p>ลงชื่อรับรอง / ตรวจสอบความถูกต้อง</p>
+                                <div className="signature-line"></div>
+                                <p>( ....................................................... )</p>
+                                <p className="font-bold mt-1">ไวยาวัจกร / กรรมการวัด</p>
+                                <p className="text-sm mt-1">วันที่ ....../....../..........</p>
                             </div>
                             <div className="signature-box">
                                 <p>ทราบ / ดำเนินการ</p>
                                 <div className="signature-line"></div>
-                                <p>({settings.receipt?.abbotName || 'พระครูวิจารณ์ธรรมาภิวัฒน์'})</p>
+                                <p>( {settings.receipt?.abbotName || '.......................................................'} )</p>
                                 <p className="font-bold mt-1">เจ้าอาวาส</p>
-                                <p className="text-sm mt-1">วันที่ {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                <p className="text-sm mt-1">วันที่ ....../....../..........</p>
                             </div>
                         </div>
-
                     </div>
                     {/* ==================================================== */}
 
