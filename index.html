@@ -3211,12 +3211,15 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
             const handleUpdateSettings = async (newSettings) => {
                 if (!user) return;
                 try {
-                    // ทำความสะอาดข้อมูล (Sanitize) เพื่อลบค่า undefined ที่ Firestore ไม่รองรับทิ้งไป
+                    // ด่านสกัดกั้นขั้นเด็ดขาด: แปลงทุกอย่างให้เป็นข้อความ (Stringify) แล้วแปลงกลับ
+                    // วิธีนี้จะทำลายค่า undefined, DOM Event, หรือ Object ขยะที่ Firestore ไม่รองรับทิ้งทั้งหมด
                     const sanitizedSettings = JSON.parse(JSON.stringify(newSettings));
                     
+                    // บันทึกเฉพาะข้อมูลที่สะอาด 100% ลง Firestore
                     await setDoc(doc(db, 'settings', 'config'), sanitizedSettings);
                     showNotification('บันทึกการตั้งค่าระบบเรียบร้อย');
                 } catch (e) {
+                    console.error("Firebase Error Details:", e);
                     showNotification("ตั้งค่าไม่สำเร็จ: " + e.message, 'error');
                 }
             };
