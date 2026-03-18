@@ -71,73 +71,49 @@
             .print-only { display: block !important; }
 
             /* --- 1. การพิมพ์รายงาน (Report A4) --- */
-            body:not(.printing-receipt) * { visibility: hidden; }
-            body:not(.printing-receipt) .print-container, 
-            body:not(.printing-receipt) .print-container * { visibility: visible; }
-            
-            body:not(.printing-receipt) .print-container {
-                position: absolute; 
-                left: 0; 
-                top: 0; 
-                width: 100% !important; 
-                background: white !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-
             .print-table { 
                 width: 100% !important; 
                 border-collapse: collapse !important; 
-                margin-bottom: 30px !important;
+                margin-bottom: 20px !important;
             }
-            /* ป้องกันไม่ให้ตารางหรือแถวถูกตัดขาดกลางหน้า */
-            .print-table, .print-table tr, .signature-section { 
+            .print-table, .print-table tr { 
                 page-break-inside: avoid !important; 
                 break-inside: avoid !important;
             }
             .print-table thead { display: table-header-group !important; }
             
-            /* ปรับแต่งหัวตาราง (เส้นทึบ) */
+            /* หัวตาราง (เส้นทึบบางลงเหลือ 3/4) */
             .print-table thead th { 
-                border-top: 2px solid #000 !important; 
-                border-bottom: 1px solid #000 !important; 
+                border-top: 1.5px solid #000 !important; /* ลดจาก 2px เหลือ 1.5px */
+                border-bottom: 0.75px solid #000 !important; /* ลดจาก 1px เหลือ 0.75px */
                 border-left: none !important;
                 border-right: none !important;
-                padding: 10px 8px !important; 
-                font-size: 16px !important; /* ขนาดอักษรมาตรฐาน 16pt */
+                padding: 7px 6px !important; /* ลดระยะห่างลง 30% */
+                font-size: 11px !important; /* ลดขนาดฟอนต์ลง 30% (จาก 16px เหลือ 11px) */
                 font-weight: bold !important; 
                 text-align: center; 
                 color: #000 !important;
                 background-color: transparent !important;
             }
             
-            /* ปรับแต่งเนื้อหาตาราง (เส้นประ) */
+            /* เนื้อหาตาราง (เส้นประบางลงเหลือ 3/4) */
             .print-table tbody td { 
                 border-top: none !important;
-                border-bottom: 1px dashed #666 !important; /* เส้นประระหว่างบรรทัด */
+                border-bottom: 0.75px dashed #666 !important; /* ลดจาก 1px เหลือ 0.75px */
                 border-left: none !important;
                 border-right: none !important;
-                padding: 10px 8px !important; 
-                font-size: 16px !important; /* ขนาดอักษรทางการ 16pt */
+                padding: 7px 6px !important; 
+                font-size: 11px !important; /* ลดขนาดฟอนต์ลง 30% */
                 color: #000 !important;
             }
 
-            /* บรรทัดรวมยอด ให้เป็นเส้นทึบและเส้นคู่ */
+            /* บรรทัดรวมยอด (เส้นทึบ/เส้นคู่บางลงเหลือ 3/4) */
             .print-table tbody tr.total-row td {
-                border-top: 1px solid #000 !important;
-                border-bottom: 3px double #000 !important;
+                border-top: 0.75px solid #000 !important; /* ลดจาก 1px เหลือ 0.75px */
+                border-bottom: 2.25px double #000 !important; /* ลดจาก 3px เหลือ 2.25px */
                 font-weight: bold !important;
-                font-size: 16px !important;
+                font-size: 11px !important;
             }
-
-            .signature-section { 
-                display: flex !important; 
-                margin-top: 60px !important; 
-                justify-content: space-around; 
-                font-size: 16px !important; /* ขนาดอักษรทางการ */
-            }
-            .signature-box { text-align: center; width: 40%; color: black !important; }
-            .signature-line { border-bottom: 1px dotted black; width: 80%; margin: 40px auto 10px auto; height: 1px; }
 
             /* --- 2. การพิมพ์ใบเสร็จ (Receipt A4 Landscape) --- */
             body.printing-receipt * { visibility: hidden; }
@@ -1576,24 +1552,54 @@
                     <div className="print-container print-only" style={{ fontFamily: "'Sarabun', sans-serif" }}>
                         
                         {/* OFFICIAL HEADER (Print Only) */}
-                        {/* HEADER ทางการ */}
-                                <div className="print-header-official mb-6">
-                                    <div className="flex items-center justify-center mb-4 relative">
-                                        <img src={settings.receipt?.logoUrl || "https://img2.pic.in.th/pic/-Ver.3-1.png"}  alt="Logo"  crossOrigin="anonymous" style={{ height: '80px', position: 'absolute', left: '0', objectFit: 'contain' }} />
-                                        <div className="text-center w-full">
-                                    <h1 className="text-[22px] font-bold text-gray-900 leading-tight">รายงานสรุปยอดรับบริจาค</h1>
-                                    <h2 className="text-[20px] font-bold text-gray-900">{settings.templeName}</h2>
+                        <div className="print-header-official mb-4">
+                            <div className="flex items-center justify-center mb-3 relative">
+                                <img 
+                                    src={settings.receipt?.logoUrl || "https://img2.pic.in.th/pic/-Ver.3-1.png"} 
+                                    alt="Logo" 
+                                    crossOrigin="anonymous"
+                                    style={{ height: '56px', position: 'absolute', left: '0', objectFit: 'contain' }} 
+                                />
+                                <div className="text-center w-full">
+                                    <h1 className="text-[14px] font-bold">รายงานสรุปยอดเงินบริจาค</h1>
+                                    <h2 className="text-[13px] font-bold">{settings.templeName}</h2>
                                 </div>
                             </div>
                             
-                            <div className="flex justify-between items-end border-b-2 border-black pb-2 mt-8 text-[16px]">
+                            <div className="text-[11px] mt-4 leading-relaxed">
+                                <p><strong>ส่วนราชการ:</strong> {settings.templeName}</p>
+                                <p><strong>ที่:</strong> ......................................................</p>
+                                <p><strong>วันที่:</strong> {printDateDisplay}</p>
+                            </div>
+    
+                            <div className="mt-3 text-[11px]">
+                                <p><strong>เรื่อง:</strong> รายงานสรุปยอดเงินบริจาคประจำรอบ</p>
+                                <p><strong>เรียน:</strong> เจ้าอาวาส / ผู้มีอำนาจอนุมัติ</p>
+                            </div>
+    
+                            <div className="mt-3 text-[11px] leading-loose">
+                                <p>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ {settings.templeName} ได้ดำเนินการรับบริจาคเพื่อสนับสนุนกิจกรรมและการดำเนินงานต่าง ๆ 
+                                    นั้น บัดนี้ได้ดำเนินการสรุปยอดเงินบริจาคประจำรอบเรียบร้อยแล้ว 
+                                    รายละเอียดปรากฏตามตารางด้านล่างนี้
+                                </p>
+                            </div>
+    
+                            <div className="flex justify-between items-end border-b-[1.5px] border-black pb-2 mt-4 text-[10px]">
                                 <div>
-                                    <p><strong>เรื่อง:</strong> สรุปยอดเงินบริจาคประจำรอบ</p>
                                     <p><strong>ข้อมูล ณ วันที่:</strong> {printDateDisplay}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p><strong>วันเวลาที่ออกรายงาน:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} เวลา {new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})} น.</p>
-                                    <p><strong>ผู้พิมพ์รายงาน:</strong> {loggedInUser ? loggedInUser.name : 'ระบบอัตโนมัติ'}</p>
+                                    <p>
+                                        <strong>วันเวลาที่ออกรายงาน:</strong>{" "}
+                                        {new Date().toLocaleDateString('th-TH', {
+                                            year: 'numeric', month: 'long', day: 'numeric'
+                                        })} เวลา{" "}
+                                        {new Date().toLocaleTimeString('th-TH', {
+                                            hour: '2-digit', minute: '2-digit'
+                                        })} น.
+                                    </p>
+                                    <p><strong>ผู้จัดทำรายงาน:</strong> {loggedInUser ? loggedInUser.name : 'ระบบอัตโนมัติ'}</p>
                                 </div>
                             </div>
                         </div>
@@ -1602,12 +1608,12 @@
                         <table className="print-table">
                             <thead>
                                 <tr>
-                                    <th className="w-12 text-center">ลำดับ</th>
-                                    <th className="w-36 text-left">วัน - เวลา</th>
-                                    <th className="w-48 text-left">ผู้บริจาค</th>
+                                    <th className="w-10 text-center">ลำดับ</th>
+                                    <th className="w-28 text-left">วัน - เวลา</th>
+                                    <th className="w-36 text-left">ผู้บริจาค</th>
                                     <th className="text-left">รายละเอียด</th>
-                                    <th className="w-24 text-center">ช่องทาง</th>
-                                    <th className="w-28 text-right">จำนวนเงิน (บาท)</th>
+                                    <th className="w-20 text-center">ช่องทาง</th>
+                                    <th className="w-24 text-right">จำนวนเงิน (บาท)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1640,7 +1646,7 @@
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-4">
+                                        <td colSpan="6" className="text-center py-3">
                                             ไม่พบข้อมูลในรอบที่กำหนด
                                         </td>
                                     </tr>
@@ -1648,10 +1654,10 @@
     
                                 {filteredData.length > 0 && (
                                     <tr className="total-row font-bold">
-                                        <td colSpan="5" className="text-right pr-4 py-3">
+                                        <td colSpan="5" className="text-right pr-3 py-2">
                                             รวมยอดเงินบริจาคสุทธิทั้งสิ้น
                                         </td>
-                                        <td className="text-right py-3">
+                                        <td className="text-right py-2">
                                             {totalAmount.toLocaleString(undefined, {
                                                 minimumFractionDigits: 2
                                             })}
@@ -1663,7 +1669,7 @@
     
                         {/* หมายเหตุ */}
                         {filteredData.filter(d => d.status === 'pending').length > 0 && (
-                            <p className="text-[14px] mt-3 text-gray-600">
+                            <p className="text-[10px] mt-2 text-gray-600">
                                 หมายเหตุ: ยอดเงินรวมข้างต้น คำนวณเฉพาะรายการที่ได้รับการอนุมัติแล้ว 
                                 โดยมีรายการรอตรวจสอบจำนวน {filteredData.filter(d => d.status === 'pending').length} รายการ
                             </p>
@@ -1671,10 +1677,6 @@
     
                     </div>
                     {/* ==================================================== */}
-
-                </div>
-            );
-        }
 
         function ApprovalPanel({ donations, onApprove, onReject }) {
             const pending = donations.filter(d => d.status === 'pending');
