@@ -3211,20 +3211,32 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
             const handleUpdateSettings = async (newSettings) => {
                 if (!user) return;
                 try {
-                    // ด่านที่ 1: ทำความสะอาดข้อมูลทั้งหมด 
-                    // (แปลงไป-กลับ เพื่อฆ่าไวรัสและ Object ขยะทิ้ง 100% ป้องกัน Error: invalid nested entity)
+                    // 1. ทำความสะอาดข้อมูลทั่วไป
                     const cleanSettings = JSON.parse(JSON.stringify(newSettings));
                     
-                    // ด่านที่ 2: ตรวจสอบขนาดข้อมูลก่อนส่งไป Firebase
-                    // (ป้องกัน Error: exceeds the maximum allowed size of 1,048,576 bytes)
-                    const dataSize = new Blob([JSON.stringify(cleanSettings)]).size;
-                    if (dataSize > 950000) { // ถ้าข้อมูลใหญ่เกิน ~950KB
-                        throw new Error("ขนาดรูปรวมกันใหญ่เกิน 1MB กรุณาอัปโหลดรูป (หน้าปก/โลโก้/ลายเซ็น) ใหม่อีกครั้ง เพื่อให้ระบบย่อขนาดให้ครับ");
-                    }
+                    // 2. ฟังก์ชันตรวจสอบรูปภาพ: ถ้ารูปใหญ่เกินไป (เกิน 1 แสนตัวอักษร) ให้ลบทิ้งเป็นค่าว่างเลย เพื่อเซฟชีวิตฐานข้อมูล
+                    const safeImage = (imgString) => {
+                        if (typeof imgString !== 'string') return '';
+                        if (imgString.length > 100000) {
+                            console.warn("รูปใหญ่เกินไป ระบบได้ลบทิ้งอัตโนมัติเพื่อป้องกัน Error 1MB");
+                            return ''; 
+                        }
+                        return imgString;
+                    };
 
-                    // ด่านที่ 3: ส่งข้อมูลที่สะอาดและขนาดผ่านเกณฑ์เข้าฐานข้อมูล
+                    // 3. บังคับล้างรูปเก่าที่ค้างอยู่ในระบบ (ถ้ามันใหญ่เกินไป มันจะถูกลบทิ้ง)
+                    if (cleanSettings.about) cleanSettings.about.imageUrl = safeImage(cleanSettings.about.imageUrl);
+                    if (cleanSettings.receipt) {
+                        cleanSettings.receipt.logoUrl = safeImage(cleanSettings.receipt.logoUrl);
+                        cleanSettings.receipt.signatureUrl = safeImage(cleanSettings.receipt.signatureUrl);
+                        cleanSettings.receipt.stampUrl = safeImage(cleanSettings.receipt.stampUrl);
+                    }
+                    if (cleanSettings.bannerUrl) cleanSettings.bannerUrl = safeImage(cleanSettings.bannerUrl);
+                    if (cleanSettings.qrCodeUrl) cleanSettings.qrCodeUrl = safeImage(cleanSettings.qrCodeUrl);
+
+                    // 4. ส่งข้อมูลที่เบาหวิวเข้าฐานข้อมูล
                     await setDoc(doc(db, 'settings', 'config'), cleanSettings);
-                    showNotification('บันทึกการตั้งค่าระบบเรียบร้อย');
+                    showNotification('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว!');
                 } catch (e) {
                     console.error("Firebase Update Error:", e);
                     showNotification("ตั้งค่าไม่สำเร็จ: " + e.message, 'error');
