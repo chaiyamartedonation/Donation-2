@@ -148,19 +148,13 @@
                 position: absolute !important; 
                 left: 0 !important; 
                 top: 0 !important; 
-                width: 297mm !important;
-                height: 210mm !important;
+                width: 100% !important; 
+                height: auto !important;
                 margin: 0 !important; 
-                padding: 15mm !important;
+                padding: 0 !important;
                 box-shadow: none !important;
                 background: white !important;
             }
-            
-            .receipt-print-zone * {
-                font-family: 'Sarabun', sans-serif !important; 
-                color: black !important;
-            }
-        }
         
         /* Hide Scrollbar */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -469,8 +463,7 @@
                     <div className="w-full max-w-[850px] flex-grow overflow-auto bg-gray-900/40 rounded-xl flex justify-center p-2 sm:p-6 hide-scrollbar">
                         
                         {/* เปลี่ยนจาก height ตายตัว เป็น minHeight เพื่อป้องกันเนื้อหาล้นจนเกิดหน้าขาว */}
-                        <div id="receipt-pdf-content" className="bg-white shadow-2xl relative shrink-0" 
-                             style={{ fontFamily: "'Sarabun', sans-serif", width: '794px', minHeight: '1050px', color: '#000', boxSizing: 'border-box', overflow: 'hidden' }}>
+                        <div id="receipt-pdf-content" className="receipt-print-zone bg-white shadow-2xl relative shrink-0"  style={{ fontFamily: "'Sarabun', sans-serif", width: '794px', minHeight: '1050px', color: '#000', boxSizing: 'border-box', overflow: 'hidden' }}>
                             
                             {/* กรอบเส้นขอบด้านนอก */}
                             <div className="absolute inset-[15px] border border-gray-400 z-10 pointer-events-none" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
