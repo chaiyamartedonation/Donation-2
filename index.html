@@ -1571,62 +1571,29 @@
                     </div>
 
                     
-                    {/* ==================================================== */}
+                   {/* ==================================================== */}
                     {/* PRINT ONLY SECTION (รายงาน A4 ถูกดึงมาโชว์เฉพาะตอนกดพิมพ์เท่านั้น) */}
                     {/* ==================================================== */}
                     <div className="print-container print-only" style={{ fontFamily: "'Sarabun', sans-serif" }}>
-    
-                        {/* HEADER ทางการ */}
+                        
+                        {/* OFFICIAL HEADER (Print Only) */}
                         <div className="print-header-official mb-6">
                             <div className="flex items-center justify-center mb-4 relative">
-                                <img 
-                                    src="https://img2.pic.in.th/pic/-Ver.3-1.png" 
-                                    alt="Logo" 
-                                    style={{ height: '80px', position: 'absolute', left: '0' }} 
-                                />
+                                <img src="https://img2.pic.in.th/pic/-Ver.3-1.png" alt="Logo" style={{ height: '80px', position: 'absolute', left: '0' }} />
                                 <div className="text-center w-full">
-                                    <h1 className="text-[20px] font-bold">รายงานสรุปยอดเงินบริจาค</h1>
-                                    <h2 className="text-[18px] font-bold">{settings.templeName}</h2>
+                                    <h1 className="text-[22px] font-bold text-gray-900 leading-tight">รายงานสรุปยอดรับบริจาค</h1>
+                                    <h2 className="text-[20px] font-bold text-gray-900">{settings.templeName}</h2>
                                 </div>
                             </div>
-    
-                            {/* ข้อมูลเอกสาร */}
-                            <div className="text-[16px] mt-6 leading-relaxed">
-                                <p><strong>ส่วนราชการ:</strong> {settings.templeName}</p>
-                                <p><strong>ที่:</strong> ......................................................</p>
-                                <p><strong>วันที่:</strong> {printDateDisplay}</p>
-                            </div>
-    
-                            {/* เรื่อง */}
-                            <div className="mt-4 text-[16px]">
-                                <p><strong>เรื่อง:</strong> รายงานสรุปยอดเงินบริจาคประจำรอบ</p>
-                                <p><strong>เรียน:</strong> เจ้าอาวาส / ผู้มีอำนาจอนุมัติ</p>
-                            </div>
-    
-                            {/* เนื้อความ */}
-                            <div className="mt-4 text-[16px] leading-loose">
-                                <p>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ {settings.templeName} ได้ดำเนินการรับบริจาคเพื่อสนับสนุนกิจกรรมและการดำเนินงานต่าง ๆ 
-                                    นั้น บัดนี้ได้ดำเนินการสรุปยอดเงินบริจาคประจำรอบเรียบร้อยแล้ว 
-                                    รายละเอียดปรากฏตามตารางด้านล่างนี้
-                                </p>
-                            </div>
-    
-                            <div className="flex justify-between items-end border-b-2 border-black pb-2 mt-6 text-[14px]">
+                            
+                            <div className="flex justify-between items-end border-b-2 border-black pb-2 mt-8 text-[16px]">
                                 <div>
+                                    <p><strong>เรื่อง:</strong> สรุปยอดเงินบริจาคประจำรอบ</p>
                                     <p><strong>ข้อมูล ณ วันที่:</strong> {printDateDisplay}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p>
-                                        <strong>วันเวลาที่ออกรายงาน:</strong>{" "}
-                                        {new Date().toLocaleDateString('th-TH', {
-                                            year: 'numeric', month: 'long', day: 'numeric'
-                                        })} เวลา{" "}
-                                        {new Date().toLocaleTimeString('th-TH', {
-                                            hour: '2-digit', minute: '2-digit'
-                                        })} น.
-                                    </p>
-                                    <p><strong>ผู้จัดทำรายงาน:</strong> {loggedInUser ? loggedInUser.name : 'ระบบอัตโนมัติ'}</p>
+                                    <p><strong>วันเวลาที่ออกรายงาน:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} เวลา {new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})} น.</p>
+                                    <p><strong>ผู้พิมพ์รายงาน:</strong> {loggedInUser ? loggedInUser.name : 'ระบบอัตโนมัติ'}</p>
                                 </div>
                             </div>
                         </div>
