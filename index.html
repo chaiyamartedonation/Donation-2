@@ -3132,7 +3132,10 @@
             const handleUpdateSettings = async (newSettings) => {
                 if (!user) return;
                 try {
-                    await setDoc(doc(db, 'settings', 'config'), newSettings);
+                    // ทำความสะอาดข้อมูล (Sanitize) ตัดค่า undefined และ Object แปลกปลอมทิ้ง
+                    const sanitizedSettings = JSON.parse(JSON.stringify(newSettings));
+                    
+                    await setDoc(doc(db, 'settings', 'config'), sanitizedSettings);
                     showNotification('บันทึกการตั้งค่าระบบเรียบร้อย');
                 } catch (e) {
                     showNotification("ตั้งค่าไม่สำเร็จ: " + e.message, 'error');
