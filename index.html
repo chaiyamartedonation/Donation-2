@@ -406,6 +406,9 @@
             const amountText = convertToThaiBahtText(donation.amount);
             const rcpSettings = settings.receipt || DEFAULT_SETTINGS.receipt;
             
+            // --- เพิ่มบรรทัดนี้เข้าไปครับ เพื่อให้ระบบรู้จัก templeLogo ---
+            const templeLogo = rcpSettings.logoUrl || "https://img2.pic.in.th/pic/-Ver.3-1.png";
+            
             let printPurpose = donation.purpose;
             if (!printPurpose || printPurpose === '-') {
                 printPurpose = rcpSettings.defaultPurpose;
@@ -3132,7 +3135,7 @@
             const handleUpdateSettings = async (newSettings) => {
                 if (!user) return;
                 try {
-                    // ทำความสะอาดข้อมูล (Sanitize) ตัดค่า undefined และ Object แปลกปลอมทิ้ง
+                    // ทำความสะอาดข้อมูล (Sanitize) เพื่อลบค่า undefined ที่ Firestore ไม่รองรับทิ้งไป
                     const sanitizedSettings = JSON.parse(JSON.stringify(newSettings));
                     
                     await setDoc(doc(db, 'settings', 'config'), sanitizedSettings);
