@@ -1565,31 +1565,12 @@
                                     <h2 className="text-[13px] font-bold">{settings.templeName}</h2>
                                 </div>
                             </div>
-                            
-                            <div className="text-[11px] mt-4 leading-relaxed">
-                                <p><strong>ส่วนราชการ:</strong> {settings.templeName}</p>
-                                <p><strong>ที่:</strong> ......................................................</p>
-                                <p><strong>วันที่:</strong> {printDateDisplay}</p>
-                            </div>
-    
-                            <div className="mt-3 text-[11px]">
-                                <p><strong>เรื่อง:</strong> รายงานสรุปยอดเงินบริจาคประจำรอบ</p>
-                                <p><strong>เรียน:</strong> เจ้าอาวาส / ผู้มีอำนาจอนุมัติ</p>
-                            </div>
-    
-                            <div className="mt-3 text-[11px] leading-loose">
-                                <p>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ {settings.templeName} ได้ดำเนินการรับบริจาคเพื่อสนับสนุนกิจกรรมและการดำเนินงานต่าง ๆ 
-                                    นั้น บัดนี้ได้ดำเนินการสรุปยอดเงินบริจาคประจำรอบเรียบร้อยแล้ว 
-                                    รายละเอียดปรากฏตามตารางด้านล่างนี้
-                                </p>
-                            </div>
-    
+
                             <div className="flex justify-between items-end border-b-[1.5px] border-black pb-2 mt-4 text-[10px]">
                                 <div>
                                     <p><strong>ข้อมูล ณ วันที่:</strong> {printDateDisplay}</p>
                                 </div>
-                                <div className="text-right">
+                                <div className="text-left">
                                     <p>
                                         <strong>วันเวลาที่ออกรายงาน:</strong>{" "}
                                         {new Date().toLocaleDateString('th-TH', {
