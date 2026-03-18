@@ -1795,7 +1795,19 @@
                 return () => document.removeEventListener("mousedown", handleClickOutside);
             }, []);
 
-            const handleSave = () => { onSave(config); };
+            const handleSave = () => { 
+                // ป้องกันกรณี object receipt แหว่งหรือเป็น undefined
+                const safeConfig = {
+                    ...config,
+                    receipt: config.receipt || {}
+                };
+                
+                // ล้างค่า undefined หรือไฟล์ขยะที่ Firestore ไม่รองรับทิ้ง
+                const cleanConfig = JSON.parse(JSON.stringify(safeConfig));
+                
+                onSave(cleanConfig); 
+            };
+            
             const handleAddDonationType = () => { const newType = { id: `type_${Date.now()}`, name: 'รายการใหม่', hasQuantity: false, price: 0, active: true }; setConfig({ ...config, donationTypes: [...(config.donationTypes || []), newType] }); };
             const handleRemoveDonationType = (index) => { const newTypes = [...(config.donationTypes || [])]; newTypes.splice(index, 1); setConfig({...config, donationTypes: newTypes}); };
             const handleUpdateDonationType = (index, field, value) => { const newTypes = [...(config.donationTypes || [])]; newTypes[index] = { ...newTypes[index], [field]: value }; setConfig({...config, donationTypes: newTypes}); };
