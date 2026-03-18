@@ -1702,23 +1702,11 @@
                             </p>
                         )}
                     
-                        {/* สรุปท้าย */}
-                        <div className="mt-6 text-[16px] leading-loose">
-                            <p>
-                                จึงเรียนมาเพื่อโปรดทราบ
-                            </p>
-                        </div>
-                    
-                        {/* ลงนาม */}
-                        <div className="signature-section mt-16 flex justify-end">
-                            <div className="text-center">
-                                <p>ลงชื่อ .......................................................</p>
-                                <p className="mt-2">( {loggedInUser ? loggedInUser.name : '................................'} )</p>
-                                <p className="mt-1">ผู้จัดทำรายงาน</p>
-                            </div>
-                        </div>
-                    
-                    </div>
+                       {/* ==================================================== */}
+
+                </div>
+            );
+        }
 
         function ApprovalPanel({ donations, onApprove, onReject }) {
             const pending = donations.filter(d => d.status === 'pending');
