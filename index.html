@@ -3211,72 +3211,27 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
             const handleUpdateSettings = async (newSettings) => {
                 if (!user) return;
                 try {
-                    // ท่าไม้ตาย: ดึงข้อมูลออกมาทีละตัวเพื่อสร้าง Object ใหม่ที่สะอาด 100%
-                    // ทิ้งค่าแปลกปลอม, ฟังก์ชันแฝง, หรือ Object ขยะที่ทำให้ Firestore พัง
-                    const cleanSettings = {
-                        systemStatus: newSettings.systemStatus || 'open',
-                        templeName: newSettings.templeName || 'วัดไชยามาตย์',
-                        themeColor: newSettings.themeColor || 'orange',
-                        fontFamily: newSettings.fontFamily || 'Prompt',
-                        bannerUrl: newSettings.bannerUrl || '',
-                        qrCodeUrl: newSettings.qrCodeUrl || '',
-                        marqueeText: newSettings.marqueeText || '',
-                        requireSlip: newSettings.requireSlip !== false,
-                        about: {
-                            title: newSettings.about?.title || '',
-                            heading: newSettings.about?.heading || '',
-                            highlightWord: newSettings.about?.highlightWord || '',
-                            content: newSettings.about?.content || '',
-                            imageUrl: newSettings.about?.imageUrl || ''
-                        },
-                        receipt: {
-                            logoUrl: newSettings.receipt?.logoUrl || '',
-                            taxId: newSettings.receipt?.taxId || '',
-                            abbotName: newSettings.receipt?.abbotName || '',
-                            address: newSettings.receipt?.address || '',
-                            defaultPurpose: newSettings.receipt?.defaultPurpose || '',
-                            signatureUrl: newSettings.receipt?.signatureUrl || '',
-                            stampUrl: newSettings.receipt?.stampUrl || ''
-                        },
-                        emailNotify: {
-                            enabled: !!newSettings.emailNotify?.enabled,
-                            serviceId: newSettings.emailNotify?.serviceId || '',
-                            templateId: newSettings.emailNotify?.templateId || '',
-                            publicKey: newSettings.emailNotify?.publicKey || '',
-                            adminEmail: newSettings.emailNotify?.adminEmail || ''
-                        },
-                        lineNotify: {
-                            enabled: !!newSettings.lineNotify?.enabled,
-                            webhookUrl: newSettings.lineNotify?.webhookUrl || '',
-                            targetIds: newSettings.lineNotify?.targetIds || '',
-                            messageTemplate: newSettings.lineNotify?.messageTemplate || ''
-                        },
-                        passwords: {
-                            editPin: newSettings.passwords?.editPin || '104'
-                        },
-                        bankInfo: {
-                            bankName: newSettings.bankInfo?.bankName || '',
-                            accountName: newSettings.bankInfo?.accountName || '',
-                            accountNumber: newSettings.bankInfo?.accountNumber || ''
-                        },
-                        contact: {
-                            phone: newSettings.contact?.phone || '',
-                            address: newSettings.contact?.address || '',
-                            facebook: newSettings.contact?.facebook || '',
-                            line: newSettings.contact?.line || ''
-                        },
-                        messages: {
-                            thankYou: newSettings.messages?.thankYou || ''
-                        },
-                        users: Array.isArray(newSettings.users) ? newSettings.users : [],
-                        donationTypes: Array.isArray(newSettings.donationTypes) ? newSettings.donationTypes : []
+                    // 1. ล้างข้อมูลขยะทั้งหมดด้วยการจำลองโครงสร้างใหม่
+                    let pureSettings = JSON.parse(JSON.stringify(newSettings));
+                    
+                    // 2. บังคับกำหนดโครงสร้างของ receipt ให้ถูกต้อง 100% เสมอ
+                    // ป้องกันการมี object แปลกปลอมหรือ undefined เล็ดลอดเข้าไป
+                    const currentReceipt = pureSettings.receipt || {};
+                    pureSettings.receipt = {
+                        logoUrl: currentReceipt.logoUrl || "",
+                        taxId: currentReceipt.taxId || "",
+                        abbotName: currentReceipt.abbotName || "",
+                        address: currentReceipt.address || "",
+                        defaultPurpose: currentReceipt.defaultPurpose || "",
+                        signatureUrl: currentReceipt.signatureUrl || "",
+                        stampUrl: currentReceipt.stampUrl || ""
                     };
-
-                    // บันทึกเฉพาะข้อมูลที่เราประกอบร่างใหม่เท่านั้น
-                    await setDoc(doc(db, 'settings', 'config'), cleanSettings);
+                    
+                    // 3. ส่งข้อมูลที่บริสุทธิ์แล้วเข้าฐานข้อมูล
+                    await setDoc(doc(db, 'settings', 'config'), pureSettings);
                     showNotification('บันทึกการตั้งค่าระบบเรียบร้อย');
                 } catch (e) {
-                    console.error("Firebase Error Details:", e);
+                    console.error("Firebase Update Error:", e);
                     showNotification("ตั้งค่าไม่สำเร็จ: " + e.message, 'error');
                 }
             };
