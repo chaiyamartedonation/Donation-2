@@ -56,14 +56,20 @@
         /* ========================================= */
         /* CSS สำหรับการพิมพ์ (REPORT & RECEIPT) ทางการ */
         /* ========================================= */
+
         @media print {
+            /* บังคับให้พื้นหลังทุกชั้นกลายเป็นสีขาวล้วน 100% ตอนพิมพ์ */
+            body, html, #root, .min-h-screen, div[class*="bg-"] {
+                background: white !important;
+                background-color: #FFFFFF !important;
+            }
+
             body {
-                background: white !important; 
                 margin: 0 !important; 
                 padding: 0 !important;
                 -webkit-print-color-adjust: exact !important; 
                 print-color-adjust: exact !important;
-                font-family: 'Sarabun', sans-serif !important; /* บังคับใช้ฟอนต์ทางการ */
+                font-family: 'Sarabun', sans-serif !important;
             }
 
             .no-print { display: none !important; }
