@@ -1756,55 +1756,81 @@
             );
         }
 
-        function AdminSettingsPanel({ settings, onSave, onClearData }) {
-            const [config, setConfig] = useState(settings);
-            const [confirmClear, setConfirmClear] = useState('');
-            const [showClearModal, setShowClearModal] = useState(false);
-            const [clearError, setClearError] = useState(''); 
-            const [activeSection, setActiveSection] = useState('general');
-            const [isUploading, setIsUploading] = useState(false); 
-            const [isGeneratingAbout, setIsGeneratingAbout] = useState(false);
-            const [isGeneratingThankYou, setIsGeneratingThankYou] = useState(false);
-            const [openDropdown, setOpenDropdown] = useState(null);
-            const dropdownRef = useRef(null);
-
-            useEffect(() => { 
-                let newConfig = { ...settings };
-                if (!newConfig.users || newConfig.users.length === 0) {
-                    newConfig.users = [
-                        { id: '1', username: 'admin', password: settings.passwords?.admin || 'admin104', role: 'admin', name: 'Admin หลัก', permissions: ['all'] },
-                        { id: '2', username: 'staff', password: settings.passwords?.staff || '104', role: 'staff', name: 'Staff รับบริจาค', permissions: ['donate', 'dashboard'] }
-                    ];
-                }
-                if (!newConfig.lineNotify?.messageTemplate) {
-                    newConfig.lineNotify = {
-                        ...newConfig.lineNotify,
-                        messageTemplate: DEFAULT_SETTINGS.lineNotify.messageTemplate
-                    };
-                }
-                setConfig(newConfig); 
-            }, [settings]);
-
-            useEffect(() => {
-                const handleClickOutside = (event) => {
-                    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                        setOpenDropdown(null);
-                    }
+        const handleSave = () => { 
+                const cleanConfig = {
+                    systemStatus: String(config.systemStatus || 'open'),
+                    templeName: String(config.templeName || ''),
+                    themeColor: String(config.themeColor || 'orange'),
+                    fontFamily: String(config.fontFamily || 'Prompt'),
+                    bannerUrl: String(config.bannerUrl || ''),
+                    qrCodeUrl: String(config.qrCodeUrl || ''),
+                    marqueeText: String(config.marqueeText || ''),
+                    requireSlip: Boolean(config.requireSlip ?? true),
+                    about: {
+                        title: String(config.about?.title || ''),
+                        heading: String(config.about?.heading || ''),
+                        highlightWord: String(config.about?.highlightWord || ''),
+                        content: String(config.about?.content || ''),
+                        imageUrl: String(config.about?.imageUrl || '')
+                    },
+                    receipt: {
+                        logoUrl: String(config.receipt?.logoUrl || ''),
+                        taxId: String(config.receipt?.taxId || ''),
+                        abbotName: String(config.receipt?.abbotName || ''),
+                        address: String(config.receipt?.address || ''),
+                        defaultPurpose: String(config.receipt?.defaultPurpose || ''),
+                        signatureUrl: String(config.receipt?.signatureUrl || ''),
+                        stampUrl: String(config.receipt?.stampUrl || '')
+                    },
+                    emailNotify: {
+                        enabled: Boolean(config.emailNotify?.enabled || false),
+                        serviceId: String(config.emailNotify?.serviceId || ''),
+                        templateId: String(config.emailNotify?.templateId || ''),
+                        publicKey: String(config.emailNotify?.publicKey || ''),
+                        adminEmail: String(config.emailNotify?.adminEmail || '')
+                    },
+                    lineNotify: {
+                        enabled: Boolean(config.lineNotify?.enabled || false),
+                        webhookUrl: String(config.lineNotify?.webhookUrl || ''),
+                        targetIds: String(config.lineNotify?.targetIds || ''),
+                        messageTemplate: String(config.lineNotify?.messageTemplate || '')
+                    },
+                    passwords: {
+                        editPin: String(config.passwords?.editPin || '104')
+                    },
+                    bankInfo: {
+                        bankName: String(config.bankInfo?.bankName || ''),
+                        accountName: String(config.bankInfo?.accountName || ''),
+                        accountNumber: String(config.bankInfo?.accountNumber || '')
+                    },
+                    contact: {
+                        phone: String(config.contact?.phone || ''),
+                        address: String(config.contact?.address || ''),
+                        facebook: String(config.contact?.facebook || ''),
+                        line: String(config.contact?.line || '')
+                    },
+                    messages: {
+                        thankYou: String(config.messages?.thankYou || '')
+                    },
+                    users: Array.isArray(config.users) ? config.users.map(u => ({
+                        id: String(u.id || ''),
+                        username: String(u.username || ''),
+                        password: String(u.password || ''),
+                        role: String(u.role || 'staff'),
+                        name: String(u.name || ''),
+                        permissions: Array.isArray(u.permissions) ? u.permissions.map(p => String(p)) : []
+                    })) : [],
+                    donationTypes: Array.isArray(config.donationTypes) ? config.donationTypes.map(t => ({
+                        id: String(t.id || ''),
+                        name: String(t.name || ''),
+                        hasQuantity: Boolean(t.hasQuantity || false),
+                        price: Number(t.price || 0),
+                        unit: String(t.unit || ''),
+                        active: Boolean(t.active ?? true),
+                        isSpecial: Boolean(t.isSpecial || false)
+                    })) : []
                 };
-                document.addEventListener("mousedown", handleClickOutside);
-                return () => document.removeEventListener("mousedown", handleClickOutside);
-            }, []);
 
-            const handleSave = () => { 
-                // ป้องกันกรณี object receipt แหว่งหรือเป็น undefined
-                const safeConfig = {
-                    ...config,
-                    receipt: config.receipt || {}
-                };
-                
-                // ล้างค่า undefined หรือไฟล์ขยะที่ Firestore ไม่รองรับทิ้ง
-                const cleanConfig = JSON.parse(JSON.stringify(safeConfig));
-                
                 onSave(cleanConfig); 
             };
             
