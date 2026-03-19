@@ -157,7 +157,7 @@
             UploadCloud, Image as ImageIcon, Loader, Info, Settings, Trash2, AlertTriangle, 
             Plus, LogIn, Facebook, MessageCircle, Palette, Bell, FileCheck, Type, Newspaper, Edit, Layout,
             Search, SlidersHorizontal, ExternalLink, ScrollText, Users, UserCog, Mail, ChevronLeft, Sparkles,
-            ChevronDown
+            ChevronDown, Smartphone, Clock
         } from 'lucide-react';
         import { initializeApp } from "firebase/app";
         import { 
@@ -943,6 +943,7 @@
         function DonationForm({ loggedInUser, userRole, onSave, showNotification, settings }) {
             const [name, setName] = useState('');
             const [method, setMethod] = useState((userRole === 'staff' || userRole === 'admin') ? 'เงินสด' : 'เงินโอน');
+            const [customMethod, setCustomMethod] = useState(''); 
             const [generalNote, setGeneralNote] = useState('');
             const [slipImage, setSlipImage] = useState(null); 
             const [isUploading, setIsUploading] = useState(false);
@@ -950,6 +951,15 @@
             const [showThankYou, setShowThankYou] = useState(false);
             const [selectedItems, setSelectedItems] = useState({});
             const [showETaxModal, setShowETaxModal] = useState(false);
+            const [uploadSession, setUploadSession] = useState(null); 
+
+            // ⏰ State สำหรับนาฬิกาเรียลไทม์
+            const [currentTime, setCurrentTime] = useState(new Date());
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+            
             const theme = settings.themeColor || 'orange';
             const donationTypes = settings.donationTypes || [];
 
@@ -989,6 +999,35 @@
                 return sum;
             }, [selectedItems, donationTypes]);
 
+            const handleGenerateSlipQR = async () => {
+                const sessionId = `req_${Date.now()}`;
+                try {
+                    await setDoc(doc(db, 'temp_uploads', sessionId), {
+                        status: 'waiting',
+                        createdAt: new Date().toISOString(),
+                        slipImage: null
+                    });
+
+                    const uploadUrl = `${window.location.origin}${window.location.pathname}?upload_ref=${sessionId}`;
+                    setUploadSession({ id: sessionId, url: uploadUrl });
+
+                    const unsubscribe = onSnapshot(doc(db, 'temp_uploads', sessionId), (docSnap) => {
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            if (data.status === 'completed' && data.slipImage) {
+                                setSlipImage(data.slipImage); 
+                                setUploadSession(null);       
+                                showNotification('รับรูปสลิปจากผู้บริจาคเรียบร้อยแล้ว!', 'success');
+                                unsubscribe();                
+                                deleteDoc(doc(db, 'temp_uploads', sessionId)); 
+                            }
+                        }
+                    });
+                } catch (error) {
+                    showNotification('สร้าง QR Code ไม่สำเร็จ', 'error');
+                }
+            };
+
             const handleFileChange = async (e) => {
                 const file = e.target.files[0];
                 if (file) {
@@ -1027,6 +1066,10 @@
                 const isRoongTaanChecked = selectedItems['roong_taan']?.checked;
                 if (totalAmount <= 0 && !isRoongTaanChecked) return showNotification('กรุณาระบุยอดเงินบริจาค', 'error');
                 if (isRoongTaanChecked && (!selectedItems['roong_taan'].date || !selectedItems['roong_taan'].note)) return showNotification('กรุณาระบุวันที่และสิ่งของสำหรับโรงทาน', 'error');
+                
+                const finalMethod = method === 'อื่นๆ' ? customMethod : method;
+                if (method === 'อื่นๆ' && !customMethod.trim()) return showNotification('กรุณาระบุช่องทางการรับเงินให้ชัดเจน', 'error');
+                
                 if (settings.requireSlip !== false && method === 'เงินโอน' && !slipImage && userRole === 'donor') return showNotification('กรุณาแนบสลิปการโอนเงิน', 'error');
 
                 let purposeParts = [];
@@ -1048,7 +1091,7 @@
                     name, 
                     purpose: purposeParts.join(', '), 
                     amount: totalAmount, 
-                    method, 
+                    method: finalMethod, 
                     generalNote, 
                     status: userRole === 'donor' ? 'pending' : 'approved', 
                     source: userRole === 'donor' ? 'self' : 'staff', 
@@ -1065,6 +1108,7 @@
             const resetForm = () => {
                 setName(''); 
                 setMethod((userRole === 'staff' || userRole === 'admin') ? 'เงินสด' : 'เงินโอน'); 
+                setCustomMethod(''); 
                 setGeneralNote(''); 
                 setSlipImage(null);
                 const resetItems = {};
@@ -1101,7 +1145,39 @@
             }
 
             return (
-                <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden no-print">
+                // เปลี่ยนเป็น max-w-7xl เพื่อให้กล่องกว้างขึ้น รองรับ 3 คอลัมน์ได้สวยงาม
+                <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-md overflow-hidden no-print relative">
+                    
+                    {/* --- Modal แสดง QR Code ให้ผู้บริจาคสแกน --- */}
+                    {uploadSession && (
+                        <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white p-8 rounded-2xl shadow-2xl border border-gray-100 text-center max-w-sm w-full animate-scale-up">
+                                <Smartphone className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                                <h3 className="text-xl font-bold text-gray-800 mb-2">ให้ผู้บริจาคสแกน QR นี้</h3>
+                                <p className="text-sm text-gray-500 mb-6">สแกนด้วยกล้องมือถือ เพื่อส่งรูปสลิป<br/>มาที่เครื่องนี้โดยอัตโนมัติ</p>
+                                
+                                <div className="bg-white p-4 rounded-xl shadow-sm border-2 border-dashed border-gray-300 inline-block mb-6 relative">
+                                    <img 
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(uploadSession.url)}`} 
+                                        alt="Upload QR" 
+                                        className="w-48 h-48 mx-auto"
+                                    />
+                                    <div className="absolute inset-0 bg-white/20 flex items-center justify-center pointer-events-none">
+                                        <div className="w-full h-1 bg-blue-500/50 absolute top-0 animate-pulse"></div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center justify-center text-blue-600 font-bold animate-pulse mb-6">
+                                    <Loader className="w-5 h-5 mr-2 animate-spin" /> กำลังรอรับรูปสลิป...
+                                </div>
+
+                                <button type="button" onClick={() => setUploadSession(null)} className="text-gray-500 hover:text-gray-800 font-medium underline">
+                                    ยกเลิก
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className={`bg-${theme}-100 px-6 py-4 border-b border-${theme}-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2`}>
                         <h2 className={`text-xl font-semibold text-${theme}-800 flex items-center`}><PlusCircle className="w-6 h-6 mr-2 shrink-0" /> {userRole === 'donor' ? 'ฟอร์มแจ้งความประสงค์บริจาค' : 'บันทึกรับเงินบริจาค'}</h2>
                         <span className="text-xs sm:text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">{userRole === 'donor' ? 'รอตรวจสอบ' : 'อนุมัติอัตโนมัติ'}</span>
@@ -1110,35 +1186,65 @@
                     <form onSubmit={handleSubmit} className="p-6">
                         
                         {/* ข้อมูล Header ฟอร์ม */}
-                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border mb-6">
-                            <div><span className="font-semibold">ID:</span> อัตโนมัติ</div>
-                            <div><span className="font-semibold">ผู้บันทึก:</span> {loggedInUser ? loggedInUser.name : 'ผู้บริจาค (ออนไลน์)'}</div>
-                        </div>
-
-                        {/* --- ส่วนที่ 1: ข้อมูลผู้บริจาค (เต็มบรรทัด ทรงกว้าง) --- */}
-                        <div className="mb-8">
-                            <label className="block text-sm font-bold text-gray-700 bg-gray-100 p-2 rounded mb-3">1. ข้อมูลผู้บริจาค</label>
-                            <div className="px-2">
-                                <label className="block text-xs text-gray-500 mb-1 uppercase font-bold tracking-wider">ชื่อ - สกุล ผู้บริจาค <span className="text-red-500">*</span></label>
-                                {/* เปลี่ยนจาก input เป็น textarea เพื่อให้พิมพ์ชื่อยาวๆ หรือรายชื่อครอบครัวได้สบายขึ้น */}
-                                <textarea 
-                                    required 
-                                    rows="2"
-                                    className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-${theme}-500 outline-none text-lg`} 
-                                    value={name} 
-                                    onChange={e => setName(e.target.value)} 
-                                    placeholder="ชื่อ-นามสกุล (มากกว่า 1 ท่านได้)" 
-                                ></textarea>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 bg-gray-50/80 p-4 rounded-xl border border-gray-200 mb-6 items-center shadow-sm">
+                            <div className="flex items-center">
+                                <span className="font-bold text-gray-700 mr-2 bg-white px-2 py-1 rounded shadow-sm border">ID:</span> อัตโนมัติ
+                            </div>
+                            <div className="flex items-center">
+                                <span className="font-bold text-gray-700 mr-2 bg-white px-2 py-1 rounded shadow-sm border">ผู้บันทึก:</span> {loggedInUser ? loggedInUser.name : 'ผู้บริจาค (ออนไลน์)'}
+                            </div>
+                            <div className="flex items-center md:justify-end text-orange-700 font-bold bg-orange-100 px-4 py-2 rounded-lg w-fit md:ml-auto border border-orange-200">
+                                <Clock className="w-4 h-4 mr-2" />
+                                {currentTime.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })} 
+                                <span className="mx-2 text-orange-300">|</span> 
+                                {currentTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} น.
                             </div>
                         </div>
 
-                        {/* --- ส่วนที่ 2: Grid 2 คอลัมน์ (เลือกรายการ & การชำระเงิน) --- */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* ========================================================= */}
+                        {/* --- โครงสร้าง 3 คอลัมน์ (Desktop: 3, Tablet: 2, Mobile: 1) --- */}
+                        {/* ========================================================= */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                             
-                            {/* คอลัมน์ซ้าย: ประเภทการบริจาค */}
-                            <div className="space-y-3">
+                            {/* --- คอลัมน์ 1: ข้อมูลผู้บริจาค และ หมายเหตุ --- */}
+                            <div className="space-y-6">
+                                <label className="block text-sm font-bold text-gray-700 bg-gray-100 p-2 rounded">1. ข้อมูลผู้บริจาค</label>
+                                
+                                <div>
+                                    <label className="block text-xs text-gray-500 mb-1 uppercase font-bold tracking-wider">ชื่อ - สกุล ผู้บริจาค <span className="text-red-500">*</span></label>
+                                    <textarea 
+                                        required 
+                                        rows="2"
+                                        className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-${theme}-500 outline-none text-lg`} 
+                                        value={name} 
+                                        onChange={e => setName(e.target.value)} 
+                                        placeholder="เช่น ครอบครัวใจดี, นาย ก และ นาง ข (สามารถพิมพ์หลายชื่อได้)" 
+                                    ></textarea>
+                                </div>
+
+                                {/* ย้ายหมายเหตุมาไว้คอลัมน์นี้ เพื่อให้ความสูงบาลานซ์กับคอลัมน์อื่น */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="block text-sm font-medium text-gray-700">หมายเหตุเพิ่มเติม / คำอวยพร</label>
+                                        <button type="button" onClick={handleGenerateBlessing} disabled={isGeneratingBlessing || !name} className={`text-xs bg-${theme}-50 text-${theme}-600 hover:bg-${theme}-100 px-2 py-1.5 rounded flex items-center transition disabled:opacity-50 font-medium border border-${theme}-200 shadow-sm`}>
+                                            {isGeneratingBlessing ? <Loader className="w-3 h-3 animate-spin mr-1"/> : <Sparkles className="w-3 h-3 mr-1"/>}
+                                            ร่างด้วย AI ✨
+                                        </button>
+                                    </div>
+                                    <textarea 
+                                        rows="4" 
+                                        className={`w-full p-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-${theme}-500 text-sm`} 
+                                        value={generalNote} 
+                                        onChange={e => setGeneralNote(e.target.value)} 
+                                        placeholder="ข้อความเพิ่มเติม..."
+                                    ></textarea>
+                                </div>
+                            </div>
+
+                            {/* --- คอลัมน์ 2: ประเภทการบริจาค --- */}
+                            <div className="space-y-4">
                                 <label className="block text-sm font-bold text-gray-700 bg-gray-100 p-2 rounded">2. เลือกประเภทการบริจาค</label>
-                                <div className="space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                     {donationTypes.filter(t => t.active).map(type => {
                                         const itemState = selectedItems[type.id] || { checked: false, quantity: 1, amount: '' };
                                         const isChecked = itemState.checked;
@@ -1163,54 +1269,85 @@
                                 </div>
                             </div>
 
-                            {/* คอลัมน์ขวา: การชำระเงิน & หมายเหตุ */}
-                            <div className="space-y-5">
-                                <label className="block text-sm font-bold text-gray-700 bg-gray-100 p-2 rounded">3. ช่องทางการชำระเงิน</label>
+                            {/* --- คอลัมน์ 3: การชำระเงิน (ขยายเต็มแถวถ้าเป็นจอแท็บเล็ต) --- */}
+                            <div className="space-y-5 md:col-span-2 lg:col-span-1">
+                                <label className="block text-sm font-bold text-gray-700 bg-gray-100 p-2 rounded">3. สรุปยอด และ ชำระเงิน</label>
 
                                 <div className={`bg-${theme}-50 p-4 rounded-xl flex justify-between items-center border border-${theme}-200 shadow-inner`}>
                                     <span className="text-gray-700 font-bold">ยอดรวมทั้งสิ้น</span>
                                     <span className={`text-3xl font-black text-${theme}-600`}>{totalAmount.toLocaleString()} บาท</span>
                                 </div>
 
+                                {/* กล่องเลือกช่องทางชำระเงิน */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">ช่องทางการรับเงิน</label>
                                     <select className="w-full p-3 border border-gray-300 rounded-lg outline-none bg-white font-medium" value={method} onChange={e => setMethod(e.target.value)}>
                                         <option value="เงินสด">💵 รับเงินสด ณ จุดบริการ</option>
-                                        <option value="เงินโอน">🏦 โอนเงินเข้าบัญชีวัด</option>
-                                        <option value="อื่นๆ">❓ อื่นๆ</option>
+                                        <option value="เงินโอน">🏦 โอนเงินเข้าบัญชีวัด (ต้องมีสลิป)</option>
+                                        <option value="อื่นๆ">❓ อื่นๆ (พิมพ์ระบุเอง)</option>
                                     </select>
+                                    
+                                    {method === 'อื่นๆ' && (
+                                        <div className="mt-3 animate-fade-in">
+                                            <input 
+                                                type="text" 
+                                                className={`w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-${theme}-500 bg-blue-50 text-blue-900 placeholder-blue-300`}
+                                                value={customMethod}
+                                                onChange={e => setCustomMethod(e.target.value)}
+                                                placeholder="ระบุชื่อช่องทาง เช่น เช็คธนาคาร, พร้อมเพย์"
+                                                required
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* ส่วนของหลักฐานการโอน */}
                                 <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-                                    {(userRole === 'staff' || userRole === 'admin') ? (
-                                        <div className="flex items-center justify-center text-green-600 gap-2 py-2">
-                                            <CheckCircle className="w-6 h-6" />
-                                            <span className="font-bold">สถานะ: อนุมัติทันทีและออกใบเสร็จ</span>
-                                        </div>
-                                    ) : method === 'เงินโอน' ? (
-                                        <div className="space-y-4 text-center">
-                                            <div className="animate-fade-in">
-                                                <p className="text-sm font-bold text-gray-700 mb-2">สแกน QR Code เพื่อโอนเงิน</p>
-                                                <div className="bg-white p-3 rounded-lg shadow-sm border inline-block">
-                                                    <img src={settings.qrCodeUrl} alt="QR Code" className="w-32 h-32 object-contain" />
+                                    {method === 'เงินโอน' ? (
+                                        <div className="space-y-4">
+                                            
+                                            {/* ปุ่มสร้าง QR ให้ผู้บริจาคแสกน (เห็นเฉพาะเจ้าหน้าที่) */}
+                                            {(userRole === 'staff' || userRole === 'admin') && !slipImage && (
+                                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-center animate-fade-in">
+                                                    <QrCode className="w-10 h-10 text-blue-500 mx-auto mb-2" />
+                                                    <p className="text-sm font-bold text-blue-800 mb-1">รับสลิปผ่านมือถือผู้บริจาค</p>
+                                                    <p className="text-xs text-blue-600 mb-3">ให้ผู้บริจาคสแกนเพื่อส่งรูปเข้าจอคอมอัตโนมัติ</p>
+                                                    <button type="button" onClick={handleGenerateSlipQR} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md flex items-center justify-center transition">
+                                                        <Smartphone className="w-4 h-4 mr-2" />
+                                                        สร้าง QR Code รับสลิป
+                                                    </button>
                                                 </div>
-                                                <p className="text-xs text-gray-500 mt-1">{settings.bankInfo?.bankName} | {settings.bankInfo?.accountName}</p>
-                                                <p className={`text-lg font-mono font-bold text-${theme}-700 mt-1 select-all`}>{settings.bankInfo?.accountNumber}</p>
-                                            </div>
-                                            <div className="border-t border-gray-200 pt-4">
-                                                <p className="text-sm font-bold text-gray-700 mb-2">{settings.requireSlip !== false ? 'แนบหลักฐานการโอน *' : 'แนบหลักฐานการโอน (ถ้ามี)'}</p>
-                                                <label className="cursor-pointer block border-2 border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-100 transition">
+                                            )}
+
+                                            {/* ช่องทางอัปโหลดสลิปแบบปกติ */}
+                                            <div className="border-t border-gray-200 pt-4 mt-2">
+                                                <p className="text-sm font-bold text-gray-700 mb-2">
+                                                    {userRole === 'donor' ? 'สแกน QR ด้านล่างแล้วแนบสลิปที่นี่' : 'หรือแนบหลักฐานการโอนด้วยตนเอง'}
+                                                </p>
+                                                
+                                                {userRole === 'donor' && (
+                                                    <div className="bg-white p-3 rounded-lg shadow-sm border inline-block mb-3 text-center">
+                                                        <img src={settings.qrCodeUrl} alt="QR Code" className="w-32 h-32 object-contain mx-auto" />
+                                                        <p className="text-xs text-gray-500 mt-1">{settings.bankInfo?.bankName}</p>
+                                                        <p className={`text-lg font-mono font-bold text-${theme}-700 mt-1`}>{settings.bankInfo?.accountNumber}</p>
+                                                    </div>
+                                                )}
+
+                                                <label className="cursor-pointer block border-2 border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-100 transition text-center">
                                                     <div className="flex flex-col items-center justify-center">
                                                         {isUploading ? <Loader className="w-6 h-6 animate-spin text-gray-400" /> : <UploadCloud className="w-6 h-6 text-gray-400 mb-1" />}
-                                                        <span className="text-sm text-gray-600">{slipImage ? 'เปลี่ยนรูปสลิป' : 'คลิกเพื่อเลือกรูปสลิป'}</span>
+                                                        <span className="text-sm text-gray-600 font-medium">
+                                                            {slipImage ? '✓ มีรูปสลิปแล้ว (คลิก)' : 'คลิกเพื่อเลือกไฟล์รูป'}
+                                                        </span>
                                                     </div>
                                                     <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                                                 </label>
+                                                
+                                                {/* พรีวิวรูปสลิป */}
                                                 {slipImage && (
-                                                    <div className="mt-3 relative inline-block">
-                                                        <img src={slipImage} alt="Preview" className="h-24 object-contain rounded border bg-white" />
-                                                        <button type="button" onClick={() => setSlipImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600"><X className="w-3 h-3" /></button>
+                                                    <div className="mt-4 relative inline-block p-2 bg-white border rounded-xl shadow-sm w-full text-center">
+                                                        <img src={slipImage} alt="Preview" className="h-32 object-contain rounded mx-auto" />
+                                                        <button type="button" onClick={() => setSlipImage(null)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition"><X className="w-4 h-4" /></button>
                                                     </div>
                                                 )}
                                             </div>
@@ -1218,25 +1355,18 @@
                                     ) : (
                                         <div className="flex flex-col items-center justify-center text-gray-400 py-4">
                                             <ShoppingBag className="w-10 h-10 mb-2 opacity-50" />
-                                            <p className="text-sm">รอรับเงินสดที่จุดบริการ</p>
+                                            <p className="text-sm">
+                                                {method === 'เงินสด' && (userRole === 'staff' || userRole === 'admin') ? 'สถานะ: อนุมัติทันทีและออกใบเสร็จ' : 'รับเงินผ่านช่องทางที่ระบุ'}
+                                            </p>
                                         </div>
                                     )}
                                 </div>
-
-                                <div>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label className="block text-sm font-medium text-gray-700">หมายเหตุเพิ่มเติม / อุทิศหาให้ </label>
-                                        <button type="button" onClick={handleGenerateBlessing} disabled={isGeneratingBlessing || !name} className={`text-xs bg-${theme}-50 text-${theme}-600 hover:bg-${theme}-100 px-2 py-1.5 rounded flex items-center transition disabled:opacity-50 font-medium border border-${theme}-200 shadow-sm`}>
-                                            {isGeneratingBlessing ? <Loader className="w-3 h-3 animate-spin mr-1"/> : <Sparkles className="w-3 h-3 mr-1"/>}
-                                            ร่างด้วย AI ✨
-                                        </button>
-                                    </div>
-                                    <textarea rows="3" className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-${theme}-500 text-sm" value={generalNote} onChange={e => setGeneralNote(e.target.value)} placeholder="(ถ้ามี...."></textarea>
-                                </div>
-
                             </div>
-                        </div>
 
+                        </div>
+                        {/* ========================================================= */}
+
+                        {/* ปุ่มยืนยัน (กว้างเต็มแถว ด้านล่างสุด) */}
                         <div className="mt-8 pt-6 border-t border-gray-200">
                             <button type="submit" disabled={isUploading || isGeneratingBlessing} className={`w-full text-white font-bold py-4 px-4 rounded-xl hover:bg-${theme}-700 transition shadow-lg flex justify-center items-center text-xl ${(isUploading || isGeneratingBlessing) ? 'bg-gray-400 cursor-not-allowed' : `bg-${theme}-600`}`}>
                                 {(isUploading || isGeneratingBlessing) ? (
@@ -1250,7 +1380,6 @@
                 </div>
             );
         }
-
         // ==========================================
         // DataTables-style Dashboard
         // ==========================================
@@ -1839,7 +1968,7 @@
             );
         }
 
-function AdminSettingsPanel({ settings, onSave, onClearData }) {
+        function AdminSettingsPanel({ settings, onSave, onClearData }) {
             const [config, setConfig] = useState(settings);
             const [confirmClear, setConfirmClear] = useState('');
             const [showClearModal, setShowClearModal] = useState(false);
@@ -1888,6 +2017,11 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
                     qrCodeUrl: String(config.qrCodeUrl || ''),
                     marqueeText: String(config.marqueeText || ''),
                     requireSlip: Boolean(config.requireSlip ?? true),
+                    // --- เพิ่มการบันทึกป๊อปอัปตรงนี้ ---
+                    popup: {
+                        enabled: Boolean(config.popup?.enabled || false),
+                        imageUrl: String(config.popup?.imageUrl || '')
+                    },
                     about: {
                         title: String(config.about?.title || ''),
                         heading: String(config.about?.heading || ''),
@@ -2092,6 +2226,7 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
                         <DropdownMenu id="group_general" title="ข้อมูลเว็บ & ดีไซน์" icon={Layout}>
                             <TabButton id="general" label="ตั้งค่าทั่วไป / ธีม" icon={Palette} />
                             <TabButton id="about" label="หน้าหลัก (About Us)" icon={BookOpen} />
+                            <TabButton id="popup" label="ป๊อปอัปประกาศหน้าแรก" icon={Megaphone} />
                             <TabButton id="contact" label="ข้อมูลติดต่อ / โซเชียล" icon={Phone} />
                         </DropdownMenu>
 
@@ -2114,6 +2249,45 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative z-10">
                         {activeSection === 'general' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><PowerIcon className="w-5 h-5 mr-2" /> สถานะระบบ</h3><div className="space-y-2"><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'open' ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'open'} onChange={() => setConfig({...config, systemStatus: 'open'})} /><div><div className="font-bold text-green-700">เปิดรับบริจาค</div><div className="text-xs text-gray-500">ใช้งานปกติ</div></div></div></label><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'closed' ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'closed'} onChange={() => setConfig({...config, systemStatus: 'closed'})} /><div><div className="font-bold text-red-700">ปิดรับบริจาคชั่วคราว</div><div className="text-xs text-gray-500">แสดงหน้าเว็บ แต่ซ่อนฟอร์ม</div></div></div></label><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'maintenance' ? 'bg-yellow-50 border-yellow-500 ring-1 ring-yellow-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'maintenance'} onChange={() => setConfig({...config, systemStatus: 'maintenance'})} /><div><div className="font-bold text-yellow-700">ปิดปรับปรุงระบบ</div><div className="text-xs text-gray-500">แสดงหน้าแจ้งปิดปรับปรุง</div></div></div></label></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><Palette className="w-5 h-5 mr-2" /> ธีมสีเว็บไซต์</h3><div className="grid grid-cols-3 gap-2 mb-4">{themeColors.map(color => (<button key={color.id} onClick={() => setConfig({...config, themeColor: color.id})} className={`p-2 rounded border flex flex-col items-center gap-1 transition-all ${config.themeColor === color.id ? 'ring-2 ring-offset-2 ring-gray-400 border-gray-400 bg-gray-50' : 'hover:bg-gray-50'}`}><div className={`w-8 h-8 rounded-full ${color.class}`}></div><span className="text-xs">{color.name}</span></button>))}</div><h3 className="text-lg font-bold mb-4 flex items-center"><Type className="w-5 h-5 mr-2" /> ฟอนต์ (แบบตัวอักษร)</h3><select className="w-full p-2 border rounded mb-4" value={config.fontFamily || 'Sarabun'} onChange={e => setConfig({...config, fontFamily: e.target.value})}>{FONT_OPTIONS.map(font => (<option key={font.id} value={font.id}>{font.name}</option>))}</select><div><label className="block text-sm font-medium mb-1">ข้อความวิ่ง (Marquee Text)</label><input type="text" className="w-full p-2 border rounded" value={config.marqueeText || ''} onChange={e => setConfig({...config, marqueeText: e.target.value})} placeholder="เว้นว่างหากไม่ต้องการแสดง" /></div></div></div><div className="pt-4 border-t"><h3 className="text-lg font-bold mb-4 flex items-center"><ImageIcon className="w-5 h-5 mr-2" /> ข้อมูลพื้นฐาน</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium">ชื่อวัด / องค์กร</label><input type="text" className="w-full p-2 border rounded" value={config.templeName} onChange={e => setConfig({...config, templeName: e.target.value})} /></div><div><label className="text-sm font-medium">ลิงค์รูปหน้าปก (Banner URL)</label><input type="text" className="w-full p-2 border rounded" value={config.bannerUrl} onChange={e => setConfig({...config, bannerUrl: e.target.value})} /></div></div></div></div>)}
                         
+                        {/* --- เมนูตั้งค่าป๊อปอัปที่เพิ่มมาใหม่ --- */}
+                        {activeSection === 'popup' && (
+                            <div className="space-y-6 animate-fade-in">
+                                <h3 className="text-lg font-bold mb-4 flex items-center"><Megaphone className="w-5 h-5 mr-2 text-orange-600" /> ตั้งค่าป๊อปอัปประกาศหน้าแรก</h3>
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between p-4 border rounded-xl bg-gray-50">
+                                        <div>
+                                            <div className="font-bold text-gray-800">เปิดใช้งานป๊อปอัปประกาศ</div>
+                                            <div className="text-sm text-gray-500 mt-1">จะแสดงเป็นรูปภาพโฆษณาเมื่อผู้ใช้งานเข้าสู่เว็บไซต์ครั้งแรก</div>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" className="sr-only peer" checked={config.popup?.enabled || false} onChange={e => setConfig({...config, popup: {...config.popup, enabled: e.target.checked}})} />
+                                            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                                        </label>
+                                    </div>
+                                    {config.popup?.enabled && (
+                                        <div className="animate-fade-in border p-5 rounded-xl border-orange-100 bg-orange-50/30">
+                                            <label className="block text-sm font-bold text-gray-800 mb-2">ลิงก์รูปภาพป๊อปอัป (Image URL)</label>
+                                            <input 
+                                                type="text" 
+                                                className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" 
+                                                value={config.popup?.imageUrl || ''} 
+                                                onChange={e => setConfig({...config, popup: {...config.popup, imageUrl: e.target.value}})} 
+                                                placeholder="เช่น https://example.com/poster.jpg" 
+                                            />
+                                            <p className="text-sm text-orange-600 font-medium mt-2"><Info className="w-4 h-4 inline mr-1" /> แนะนำให้นำรูปไปฝากไว้ที่เว็บรับฝากรูป แล้วนำลิงก์ (URL) มาวาง เพื่อไม่ให้เปลืองพื้นที่ฐานข้อมูลครับ</p>
+                                            
+                                            {config.popup?.imageUrl && (
+                                                <div className="mt-6 pt-6 border-t border-orange-200">
+                                                    <p className="text-sm font-bold text-gray-700 mb-4 text-center">ตัวอย่างการแสดงผล</p>
+                                                    <img src={config.popup.imageUrl} alt="Popup Preview" className="max-h-[400px] object-contain mx-auto rounded-xl shadow-lg border-4 border-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {activeSection === 'about' && (
                             <div className="space-y-6 animate-fade-in">
                                 <h3 className="text-lg font-bold mb-4 flex items-center"><Layout className="w-5 h-5 mr-2" /> แก้ไขหน้าประวัติและข้อมูล</h3>
@@ -2414,7 +2588,7 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
                                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-sm text-blue-800">
                                     <Info className="w-4 h-4 inline mr-1" />
                                     ระบบใช้บริการจาก <b>EmailJS.com</b> (ฟรี 200 อีเมล/เดือน) <br/>
-                                    1. สมัครใช้งานที่ <a href="https://www.emailjs.com/" target="_blank" className="underline font-bold">EmailJS.com</a><br/>
+                                    1. สมัครใช้งานที่ <a href="https://www.emailjs.com/" target="_blank" rel="noreferrer" className="underline font-bold">EmailJS.com</a><br/>
                                     2. สร้าง Email Service และ Email Template<br/>
                                     3. ตัวแปรใน Template ที่รองรับ: {'{{donor_name}}'}, {'{{amount}}'}, {'{{purpose}}'}, {'{{method}}'}, {'{{date}}'}
                                 </div>
@@ -2722,6 +2896,9 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
             const [showETaxModal, setShowETaxModal] = useState(false);
             const [showLoginModal, setShowLoginModal] = useState(false);
             
+            // --- State สำหรับป๊อปอัปประกาศ ---
+            const [showPopup, setShowPopup] = useState(false);
+            
             const totalAmount = useMemo(() => donations.filter(d => d.status === 'approved').reduce((sum, d) => sum + (Number(d.amount) || 0), 0), [donations]);
             const theme = settings.themeColor || 'orange';
 
@@ -2730,6 +2907,13 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
             const aboutHighlight = settings.about?.highlightWord || "ล้านนา";
             const aboutContent = settings.about?.content || "วัดไชยามาตย์...";
             const aboutImage = settings.about?.imageUrl || "https://images.unsplash.com/photo-1579548231964-b0a701fccf23?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+
+            // ตรวจสอบการแสดงป๊อปอัปเมื่อโหลดข้อมูล settings เสร็จ
+            useEffect(() => {
+                if (settings.popup?.enabled && settings.popup?.imageUrl) {
+                    setShowPopup(true);
+                }
+            }, [settings.popup?.enabled, settings.popup?.imageUrl]);
 
             const renderHeading = () => {
                 if (!aboutHighlight) return aboutHeading;
@@ -2809,6 +2993,25 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
                         @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
                         .animate-marquee { animation: marquee 25s linear infinite; }
                     `}</style>
+
+                    {/* --- Modal ป๊อปอัปประกาศหน้าแรก --- */}
+                    {showPopup && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={() => setShowPopup(false)}>
+                            <div className="relative max-w-2xl w-full animate-scale-up" onClick={e => e.stopPropagation()}>
+                                <button 
+                                    onClick={() => setShowPopup(false)} 
+                                    className="absolute -top-4 -right-4 md:-top-5 md:-right-5 bg-black/50 hover:bg-black text-white rounded-full p-2 transition-colors shadow-lg border border-white/20 z-10"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                                <img 
+                                    src={settings.popup.imageUrl} 
+                                    alt="ประกาศหน้าแรก" 
+                                    className="w-full h-auto max-h-[85vh] object-contain rounded-xl shadow-2xl" 
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {showLoginModal && (
                         <LoginScreen 
@@ -3071,47 +3274,148 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
                     )}
 
                     {showETaxModal && <ETaxModal onClose={() => setShowETaxModal(false)} />}
-
-                    {/* 4. Contact/Footer Section */}
-                    <footer id="contact" className="bg-gray-900 text-white pt-20 pb-10 mt-auto border-t-[8px] border-orange-500">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-6"><div className={`w-12 h-12 rounded-2xl bg-gradient-to-br from-${theme}-400 to-${theme}-600 flex items-center justify-center text-white shadow-lg`}><BookOpen className="w-6 h-6" /></div><span className="text-3xl font-bold text-white tracking-tight">{settings.templeName}</span></div>
-                                    <p className="text-gray-400 mb-6 font-light">ร่วมสร้างบุญกุศล สะสมบารมี เป็นที่พึ่งทางใจของชาวพุทธ</p>
-                                    <div className="flex space-x-4">
-                                        {settings.contact.facebook && <a href={settings.contact.facebook} target="_blank" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all duration-300"><Facebook className="w-5 h-5" /></a>}
-                                        {settings.contact.line && <a href={settings.contact.line} target="_blank" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-green-500 hover:text-white transition-all duration-300"><MessageCircle className="w-5 h-5" /></a>}
-                                    </div>
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold mb-6 text-white tracking-wide">ข้อมูลติดต่อ</h3>
-                                    <ul className="space-y-5">
-                                        <li className="flex items-start"><div className={`p-2 rounded-lg bg-gray-800 mr-4 text-${theme}-400`}><MapPin className="w-5 h-5" /></div><span className="text-gray-400 leading-relaxed">{settings.contact.address}</span></li>
-                                        <li className="flex items-center"><div className={`p-2 rounded-lg bg-gray-800 mr-4 text-${theme}-400`}><Phone className="w-5 h-5" /></div><span className="text-gray-400 font-mono text-lg">{settings.contact.phone}</span></li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold mb-6 text-white tracking-wide">เวลาทำการ</h3>
-                                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-gray-300">เปิดให้เข้าชม/ทำบุญ</span>
-                                        </div>
-                                        <div className="text-2xl font-bold text-orange-400 font-mono">06:00 - 18:00 น.</div>
-                                        <p className="text-gray-500 text-sm mt-2">เปิดทำการทุกวัน ไม่มีวันหยุด</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="text-center text-gray-600 text-sm border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
-                                <p>&copy; {new Date().getFullYear()} {settings.templeName}. All rights reserved.</p>
-                                <p className="mt-2 md:mt-0 opacity-50">Powered by Donation Management System</p>
-                            </div>
+                </div>
+            );
+        }
+        // ==========================================
+        // ระบบอัปโหลดสลิปผ่านมือถือ (Remote Slip Upload)
+        // ==========================================
+        function RemoteSlipUpload({ db }) {
+            const [status, setStatus] = useState('waiting'); // waiting, uploading, success, error
+            const [preview, setPreview] = useState(null);
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('upload_ref');
+        
+            if (!sessionId) return <div className="p-8 text-center text-red-500 font-bold">❌ ลิงก์ไม่ถูกต้อง หรือหมดอายุแล้ว</div>;
+        
+            const handleMobileUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                setStatus('uploading');
+                try {
+                    // 1. ย่อรูป
+                    const resizedImage = await resizeImage(file);
+                    setPreview(resizedImage);
+                    
+                    // 2. ส่งรูปเข้า Firebase เพื่อให้หน้าจอเจ้าหน้าที่เด้งรับ
+                    await updateDoc(doc(db, 'temp_uploads', sessionId), {
+                        slipImage: resizedImage,
+                        status: 'completed',
+                        updatedAt: new Date().toISOString()
+                    });
+                    
+                    setStatus('success');
+                } catch (error) {
+                    console.error(error);
+                    setStatus('error');
+                }
+            };
+        
+            return (
+                <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-prompt">
+                    <div className="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center">
+                        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <UploadCloud className="w-8 h-8 text-orange-600" />
                         </div>
-                    </footer>
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">อัปโหลดสลิปโอนเงิน</h2>
+                        <p className="text-sm text-gray-500 mb-6">กรุณาแนบภาพสลิป เพื่อส่งให้เจ้าหน้าที่</p>
+        
+                        {status === 'waiting' && (
+                            <label className="block w-full bg-orange-600 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition cursor-pointer">
+                                เลือกรูปสลิปจากมือถือ
+                                <input type="file" accept="image/*" className="hidden" onChange={handleMobileUpload} />
+                            </label>
+                        )}
+        
+                        {status === 'uploading' && (
+                            <div className="py-8 flex flex-col items-center">
+                                <Loader className="w-10 h-10 text-orange-500 animate-spin mb-4" />
+                                <p className="text-orange-600 font-bold animate-pulse">กำลังส่งรูปให้เจ้าหน้าที่...</p>
+                            </div>
+                        )}
+        
+                        {status === 'success' && (
+                            <div className="py-4 animate-scale-up">
+                                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                                <h3 className="text-xl font-bold text-green-600 mb-2">ส่งสลิปสำเร็จ!</h3>
+                                <p className="text-sm text-gray-500 mb-4">ระบบบันทึกรูปภาพเรียบร้อยแล้ว<br/>คุณสามารถปิดหน้านี้ได้เลยครับ</p>
+                                {preview && <img src={preview} alt="Slip" className="w-32 mx-auto rounded-lg border shadow-sm" />}
+                            </div>
+                        )}
+        
+                        {status === 'error' && (
+                            <div className="py-4">
+                                <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                                <h3 className="text-lg font-bold text-red-600 mb-2">เกิดข้อผิดพลาด</h3>
+                                <p className="text-sm text-gray-500 mb-4">ไฟล์อาจใหญ่เกินไป หรือการเชื่อมต่อมีปัญหา</p>
+                                <button onClick={() => setStatus('waiting')} className="bg-gray-200 px-6 py-2 rounded-lg font-bold">ลองใหม่อีกครั้ง</button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             );
         }
 
+        // ==========================================
+        // ส่วนท้ายเว็บไซต์ (Global Footer) แบบดั้งเดิมของคุณ
+        // ==========================================
+        function GlobalFooter({ settings }) {
+            // กำหนด theme พื้นฐานเผื่อ settings ยังโหลดไม่เสร็จ
+            const theme = settings?.themeColor || 'orange';
+        
+            return (
+                <footer id="contact" className={`bg-gray-900 text-white pt-20 pb-10 mt-auto border-t-[8px] border-${theme}-500 w-full z-50 no-print`}>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
+                            <div>
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br from-${theme}-400 to-${theme}-600 flex items-center justify-center text-white shadow-lg`}>
+                                        <BookOpen className="w-6 h-6" />
+                                    </div>
+                                    <span className="text-3xl font-bold text-white tracking-tight">{settings?.templeName || 'ชื่อวัด'}</span>
+                                </div>
+                                <p className="text-gray-400 mb-6 font-light">ร่วมสร้างบุญกุศล สะสมบารมี เป็นที่พึ่งทางใจของชาวพุทธ</p>
+                                <div className="flex space-x-4">
+                                    {settings?.contact?.facebook && <a href={settings.contact.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all duration-300"><Facebook className="w-5 h-5" /></a>}
+                                    {settings?.contact?.line && <a href={settings.contact.line} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-green-500 hover:text-white transition-all duration-300"><MessageCircle className="w-5 h-5" /></a>}
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold mb-6 text-white tracking-wide">ข้อมูลติดต่อ</h3>
+                                <ul className="space-y-5">
+                                    <li className="flex items-start">
+                                        <div className={`p-2 rounded-lg bg-gray-800 mr-4 text-${theme}-400`}><MapPin className="w-5 h-5" /></div>
+                                        <span className="text-gray-400 leading-relaxed">{settings?.contact?.address || '-'}</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className={`p-2 rounded-lg bg-gray-800 mr-4 text-${theme}-400`}><Phone className="w-5 h-5" /></div>
+                                        <span className="text-gray-400 font-mono text-lg">{settings?.contact?.phone || '-'}</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold mb-6 text-white tracking-wide">เวลาทำการ</h3>
+                                <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-gray-300">เปิดให้เข้าชม/ทำบุญ</span>
+                                    </div>
+                                    <div className={`text-2xl font-bold text-${theme}-400 font-mono`}>06:00 - 18:00 น.</div>
+                                    <p className="text-gray-500 text-sm mt-2">เปิดทำการทุกวัน ไม่มีวันหยุด</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="text-center text-gray-600 text-sm border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
+                            <p>&copy; {new Date().getFullYear()} {settings?.templeName || 'ชื่อวัด'}. All rights reserved.</p>
+                            <p className="mt-2 md:mt-0 opacity-80">
+                                Powered by Donation Management System <span className={`text-${theme}-500 font-bold ml-1`}>v1.1.0</span>
+                            </p>
+                        </div>
+                    </div>
+                </footer>
+            );
+        }
+                    
         // ==========================================
         // 7. APP & ROOT
         // ==========================================
@@ -3327,45 +3631,73 @@ function AdminSettingsPanel({ settings, onSave, onClearData }) {
                 }
             };
 
+            // ==========================================
+            // ส่วนที่ 2: ดักจับ URL ถ้าเป็นการแสกน QR Code ให้ออกไปหน้าอัปโหลดมือถือ
+            // ==========================================
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('upload_ref')) {
+                return (
+                    <div className={`font-sans text-gray-800 flex flex-col min-h-screen`}>
+                        <style>{`
+                            @import url('https://fonts.googleapis.com/css2?family=${settings.fontFamily || 'Prompt'}:wght@300;400;500;600;700&display=swap');
+                            :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
+                            body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { font-family: var(--font-dynamic) !important; }
+                        `}</style>
+                        {/* เรียกแสดงหน้าอัปโหลดสลิปสำหรับมือถือ */}
+                        <div className="flex-grow">
+                            <RemoteSlipUpload db={db} />
+                        </div>
+                    </div>
+                );
+            }
+            // ==========================================
+
             return (
-                <div className={`font-sans text-gray-800`}>
+                <div className={`font-sans text-gray-800 flex flex-col min-h-screen`}>
                     <style>{`
                         @import url('https://fonts.googleapis.com/css2?family=${settings.fontFamily || 'Prompt'}:wght@300;400;500;600;700&display=swap');
+                        html { font-size: 80% !important; }
+                        @media print { html { font-size: 100% !important; } }
                         :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
                         body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { font-family: var(--font-dynamic) !important; }
                     `}</style>
 
                     {notification && (<NotificationToast msg={notification.msg} type={notification.type} onClose={() => setNotification(null)} />)}
                     
-                    {loading ? (
-                        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-600">
-                            <Loader className="w-10 h-10 animate-spin mb-4" />
-                            <p>กำลังเชื่อมต่อฐานข้อมูล...</p>
-                        </div>
-                    ) : currentRoute === 'donate-system' ? (
-                        <DonationSystem 
-                            onBack={() => setCurrentRoute('home')} 
-                            donations={donations}
-                            settings={settings}
-                            onAdd={handleAddDonation}
-                            onUpdate={handleUpdateDonation}
-                            onDelete={handleDeleteDonation}
-                            onUpdateSettings={handleUpdateSettings}
-                            onClearData={handleClearAllData}
-                            showNotification={showNotification}
-                            loggedInUser={loggedInUser}
-                            setLoggedInUser={setLoggedInUser}
-                        />
-                    ) : (
-                        <OfficialWebsite 
-                            onNavigate={(route) => setCurrentRoute(route)} 
-                            donations={donations} 
-                            settings={settings}
-                            setLoggedInUser={setLoggedInUser}
-                            showNotification={showNotification}
-                            onUpdateSettings={handleUpdateSettings}
-                        />
-                    )}
+                    <div className="flex-grow">
+                        {loading ? (
+                            <div className="min-h-[80vh] flex flex-col items-center justify-center bg-gray-50 text-gray-600">
+                                <Loader className="w-10 h-10 animate-spin mb-4" />
+                                <p>กำลังเชื่อมต่อฐานข้อมูล...</p>
+                            </div>
+                        ) : currentRoute === 'donate-system' ? (
+                            <DonationSystem 
+                                onBack={() => setCurrentRoute('home')} 
+                                donations={donations}
+                                settings={settings}
+                                onAdd={handleAddDonation}
+                                onUpdate={handleUpdateDonation}
+                                onDelete={handleDeleteDonation}
+                                onUpdateSettings={handleUpdateSettings}
+                                onClearData={handleClearAllData}
+                                showNotification={showNotification}
+                                loggedInUser={loggedInUser}
+                                setLoggedInUser={setLoggedInUser}
+                            />
+                        ) : (
+                            <OfficialWebsite 
+                                onNavigate={(route) => setCurrentRoute(route)} 
+                                donations={donations} 
+                                settings={settings}
+                                setLoggedInUser={setLoggedInUser}
+                                showNotification={showNotification}
+                                onUpdateSettings={handleUpdateSettings}
+                            />
+                        )}
+                    </div>
+
+                    {/* เรียกใช้ Footer ไว้ล่างสุดนอกเงื่อนไข (จะโชว์ทุกหน้า!) */}
+                    {!loading && <GlobalFooter settings={settings} />}
                 </div>
             );
         }
