@@ -1001,9 +1001,14 @@
             const [selectedItems, setSelectedItems] = useState({});
             const [showETaxModal, setShowETaxModal] = useState(false);
             const [uploadSession, setUploadSession] = useState(null); 
-
-            // ⏰ State สำหรับนาฬิกาเรียลไทม์
             const [currentTime, setCurrentTime] = useState(new Date());
+            
+            // 🌟 เพิ่ม State สำหรับเปิด-ปิด QR Code ขนาดใหญ่
+            const [showFullQR, setShowFullQR] = useState(false);
+
+            // ⏰ คำนวณสถานะระบบปัจจุบัน
+            const sysStatus = getSystemStatus(settings);
+            
             useEffect(() => {
                 const timer = setInterval(() => setCurrentTime(new Date()), 1000);
                 return () => clearInterval(timer);
@@ -1051,12 +1056,7 @@
             const handleGenerateSlipQR = async () => {
                 const sessionId = `req_${Date.now()}`;
                 try {
-                    await setDoc(doc(db, 'temp_uploads', sessionId), {
-                        status: 'waiting',
-                        createdAt: new Date().toISOString(),
-                        slipImage: null
-                    });
-
+                    await setDoc(doc(db, 'temp_uploads', sessionId), { status: 'waiting', createdAt: new Date().toISOString(), slipImage: null });
                     const uploadUrl = `${window.location.origin}${window.location.pathname}?upload_ref=${sessionId}`;
                     setUploadSession({ id: sessionId, url: uploadUrl });
 
@@ -1109,7 +1109,7 @@
 
             const handleSubmit = (e) => {
                 e.preventDefault();
-                if (settings.systemStatus === 'closed') return showNotification('ขณะนี้ปิดรับบริจาคชั่วคราว', 'error');
+                if (sysStatus !== 'open') return showNotification('ขณะนี้ระบบปิดรับบริจาคชั่วคราว/นอกเวลาทำการ', 'error');
                 if (!name) return showNotification('กรุณาระบุชื่อ-สกุล', 'error');
                 
                 const isRoongTaanChecked = selectedItems['roong_taan']?.checked;
@@ -1184,20 +1184,51 @@
                 );
             }
 
-            if (settings.systemStatus === 'closed' && userRole === 'donor') {
+            if (sysStatus !== 'open' && userRole === 'donor') {
                 return (
                     <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 text-center text-red-600">
                         <AlertTriangle className="w-16 h-16 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold">ขณะนี้ปิดรับบริจาคชั่วคราว</h2>
+                        <h2 className="text-2xl font-bold">ขณะนี้ระบบปิดรับบริจาคออนไลน์</h2>
+                        {sysStatus === 'auto_closed' ? (
+                            <p className="mt-2 text-gray-700">เปิดให้ทำรายการอัตโนมัติเวลา <b className="text-orange-600">{settings.autoClose?.openTime} - {settings.autoClose?.closeTime} น.</b></p>
+                        ) : (
+                            <p className="mt-2 text-gray-700">ขออภัยในความไม่สะดวก</p>
+                        )}
                     </div>
                 );
             }
 
             return (
-                // เปลี่ยนเป็น max-w-7xl เพื่อให้กล่องกว้างขึ้น รองรับ 3 คอลัมน์ได้สวยงาม
                 <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-md overflow-hidden no-print relative">
                     
-                    {/* --- Modal แสดง QR Code ให้ผู้บริจาคสแกน --- */}
+                    {/* 🌟 Modal สำหรับดู QR Code ขนาดใหญ่ */}
+                    {showFullQR && (
+                        <div className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowFullQR(false)}>
+                            <div className="relative max-w-sm w-full bg-white p-6 rounded-3xl text-center shadow-2xl animate-scale-up" onClick={e => e.stopPropagation()}>
+                                <button onClick={() => setShowFullQR(false)} className="absolute -top-4 -right-4 bg-gray-800 text-white rounded-full p-2 hover:bg-gray-900 shadow-xl transition-transform hover:scale-110">
+                                    <X className="w-5 h-5" />
+                                </button>
+                                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center justify-center">
+                                    <QrCode className="w-6 h-6 mr-2 text-orange-600" /> สแกนเพื่อทำบุญ
+                                </h3>
+                                
+                                <div className="bg-white p-4 rounded-xl shadow-inner border-2 border-gray-100">
+                                    <img src={settings.qrCodeUrl} alt="QR Code Full" className="w-full h-auto max-h-[50vh] object-contain mx-auto" />
+                                </div>
+                                
+                                <div className="mt-5 p-3 bg-red-50 border border-red-100 rounded-xl">
+                                    <p className="text-sm font-bold text-red-600">ไม่สามารถโอนผ่านหมายเลขบัญชีได้</p>
+                                    <p className="text-xs text-red-500 mt-1">เนื่องจากเป็นระบบ E-Donation ของกรมสรรพากร</p>
+                                </div>
+
+                                <button onClick={() => setShowFullQR(false)} className="mt-5 w-full bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors">
+                                    ปิดหน้าต่าง
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- Modal แสดง QR Code ให้ผู้บริจาคสแกนสลิป (สำหรับฝั่งแอดมิน) --- */}
                     {uploadSession && (
                         <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white p-8 rounded-2xl shadow-2xl border border-gray-100 text-center max-w-sm w-full animate-scale-up">
@@ -1251,8 +1282,7 @@
                         </div>
 
                         {/* ========================================================= */}
-                        {/* --- โครงสร้าง 3 คอลัมน์ (Desktop: 3, Tablet: 2, Mobile: 1) --- */}
-                        {/* ========================================================= */}
+                        {/* --- โครงสร้าง 3 คอลัมน์ --- */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                             
                             {/* --- คอลัมน์ 1: ข้อมูลผู้บริจาค และ หมายเหตุ --- */}
@@ -1271,7 +1301,6 @@
                                     ></textarea>
                                 </div>
 
-                                {/* ย้ายหมายเหตุมาไว้คอลัมน์นี้ เพื่อให้ความสูงบาลานซ์กับคอลัมน์อื่น */}
                                 <div>
                                     <div className="flex justify-between items-center mb-1">
                                         <label className="block text-sm font-medium text-gray-700">หมายเหตุเพิ่มเติม / คำอวยพร</label>
@@ -1299,26 +1328,53 @@
                                         const isChecked = itemState.checked;
                                         if (type.isSpecial && type.id === 'roong_taan') {
                                             return (
-                                                <div key={type.id} className={`p-3 rounded-lg border transition-colors ${isChecked ? `bg-${theme}-50 border-${theme}-300` : 'border-gray-200 hover:bg-gray-50'}`}>
-                                                    <div className="flex items-center mb-2"><input type="checkbox" className={`w-5 h-5 text-${theme}-600 rounded border-gray-300 focus:ring-${theme}-500`} checked={isChecked} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, checked: e.target.checked}})} /><span className="ml-2 font-medium">{type.name}</span></div>
-                                                    {isChecked && (<div className="ml-7 space-y-2"><input type="date" className="w-full p-2 border border-gray-300 rounded outline-none text-sm" value={itemState.date || ''} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, date: e.target.value}})} required /><input type="text" placeholder="ระบุสิ่งของ" className="w-full p-2 border border-gray-300 rounded outline-none text-sm" value={itemState.note || ''} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, note: e.target.value}})} required /></div>)}
+                                                <div key={type.id} className={`p-3 rounded-lg border transition-colors ${isChecked ? `bg-${theme}-50 border-${theme}-300 shadow-sm` : 'border-gray-200 hover:bg-gray-50'}`}>
+                                                    <div className="flex items-center mb-2">
+                                                        <input type="checkbox" className={`w-5 h-5 text-${theme}-600 rounded border-gray-300 focus:ring-${theme}-500`} checked={isChecked} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, checked: e.target.checked}})} />
+                                                        <span className="ml-2 font-medium text-gray-800">{type.name}</span>
+                                                    </div>
+                                                    {isChecked && (
+                                                        <div className="ml-7 space-y-2 animate-fade-in">
+                                                            <input type="date" className="w-full p-2 border border-gray-300 rounded outline-none text-sm focus:border-orange-500" value={itemState.date || ''} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, date: e.target.value}})} required />
+                                                            <input type="text" placeholder="ระบุสิ่งของ" className="w-full p-2 border border-gray-300 rounded outline-none text-sm focus:border-orange-500" value={itemState.note || ''} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, note: e.target.value}})} required />
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         }
                                         return (
-                                            <div key={type.id} className={`p-3 rounded-lg border transition-colors ${isChecked ? `bg-${theme}-50 border-${theme}-300` : 'border-gray-200 hover:bg-gray-50'}`}>
+                                            <div key={type.id} className={`p-3 rounded-lg border transition-colors ${isChecked ? `bg-${theme}-50 border-${theme}-300 shadow-sm` : 'border-gray-200 hover:bg-gray-50'}`}>
                                                 <div className="flex items-center mb-2 justify-between">
-                                                    <div className="flex items-center"><input type="checkbox" className={`w-5 h-5 text-${theme}-600 rounded border-gray-300 focus:ring-${theme}-500`} checked={isChecked} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, checked: e.target.checked}})} /><span className="ml-2 font-medium">{type.name} {type.hasQuantity && `(${type.price}.-)`}</span></div>
-                                                    {isChecked && type.hasQuantity && <span className={`text-${theme}-600 font-bold`}>{itemState.quantity * type.price} บ.</span>}
+                                                    <div className="flex items-center">
+                                                        <input type="checkbox" className={`w-5 h-5 text-${theme}-600 rounded border-gray-300 focus:ring-${theme}-500`} checked={isChecked} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, checked: e.target.checked}})} />
+                                                        <span className="ml-2 font-medium text-gray-800">{type.name} {type.hasQuantity && <span className="text-gray-500 text-sm">({type.price}.-)</span>}</span>
+                                                    </div>
+                                                    {isChecked && type.hasQuantity && <span className={`text-${theme}-600 font-bold`}>{(itemState.quantity * type.price).toLocaleString()} บ.</span>}
                                                 </div>
-                                                {isChecked && (<div className="ml-7 flex items-center gap-2">{type.hasQuantity ? (<><button type="button" className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => setSelectedItems(prev => ({...prev, [type.id]: {...itemState, quantity: Math.max(1, (itemState.quantity || 1) - 1)}}))}>-</button><input type="number" min="1" className="w-16 text-center border-none bg-transparent font-bold" value={itemState.quantity || 1} readOnly /><button type="button" className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => setSelectedItems(prev => ({...prev, [type.id]: {...itemState, quantity: (itemState.quantity || 1) + 1}}))}>+</button><span className="text-gray-500">{type.unit}</span></>) : (<><input type="number" min="1" placeholder="ระบุจำนวนเงิน" className="w-full p-2 border border-gray-300 rounded outline-none" value={itemState.amount} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, amount: e.target.value}})} /><span className="text-gray-500">บาท</span></>)}</div>)}
+                                                {isChecked && (
+                                                    <div className="ml-7 flex items-center gap-2 animate-fade-in">
+                                                        {type.hasQuantity ? (
+                                                            <>
+                                                                <button type="button" className="px-3 py-1 bg-white border rounded hover:bg-gray-100" onClick={() => setSelectedItems(prev => ({...prev, [type.id]: {...itemState, quantity: Math.max(1, (itemState.quantity || 1) - 1)}}))}>-</button>
+                                                                <input type="number" min="1" className="w-12 text-center border-none bg-transparent font-bold outline-none" value={itemState.quantity || 1} readOnly />
+                                                                <button type="button" className="px-3 py-1 bg-white border rounded hover:bg-gray-100" onClick={() => setSelectedItems(prev => ({...prev, [type.id]: {...itemState, quantity: (itemState.quantity || 1) + 1}}))}>+</button>
+                                                                <span className="text-gray-500 text-sm">{type.unit}</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <input type="number" min="1" placeholder="ระบุจำนวนเงิน" className="w-full p-2 border border-gray-300 rounded outline-none focus:border-orange-500" value={itemState.amount} onChange={e => setSelectedItems({...selectedItems, [type.id]: {...itemState, amount: e.target.value}})} />
+                                                                <span className="text-gray-500 text-sm">บาท</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
 
-                            {/* --- คอลัมน์ 3: การชำระเงิน (ขยายเต็มแถวถ้าเป็นจอแท็บเล็ต) --- */}
+                            {/* --- คอลัมน์ 3: การชำระเงิน --- */}
                             <div className="space-y-5 md:col-span-2 lg:col-span-1">
                                 <label className="block text-sm font-bold text-gray-700 bg-gray-100 p-2 rounded">3. สรุปยอด และ ชำระเงิน</label>
 
@@ -1327,10 +1383,9 @@
                                     <span className={`text-3xl font-black text-${theme}-600`}>{totalAmount.toLocaleString()} บาท</span>
                                 </div>
 
-                                {/* กล่องเลือกช่องทางชำระเงิน */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">ช่องทางการรับเงิน</label>
-                                    <select className="w-full p-3 border border-gray-300 rounded-lg outline-none bg-white font-medium" value={method} onChange={e => setMethod(e.target.value)}>
+                                    <select className="w-full p-3 border border-gray-300 rounded-lg outline-none bg-white font-medium focus:border-orange-500" value={method} onChange={e => setMethod(e.target.value)}>
                                         <option value="เงินสด">💵 รับเงินสด ณ จุดบริการ</option>
                                         <option value="เงินโอน">🏦 โอนเงินเข้าบัญชีวัด (ต้องมีสลิป)</option>
                                         <option value="อื่นๆ">❓ อื่นๆ (พิมพ์ระบุเอง)</option>
@@ -1350,12 +1405,10 @@
                                     )}
                                 </div>
 
-                                {/* ส่วนของหลักฐานการโอน */}
-                                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                                <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
                                     {method === 'เงินโอน' ? (
                                         <div className="space-y-4">
                                             
-                                            {/* ปุ่มสร้าง QR ให้ผู้บริจาคแสกน (เห็นเฉพาะเจ้าหน้าที่) */}
                                             {(userRole === 'staff' || userRole === 'admin') && !slipImage && (
                                                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-center animate-fade-in">
                                                     <QrCode className="w-10 h-10 text-blue-500 mx-auto mb-2" />
@@ -1368,43 +1421,59 @@
                                                 </div>
                                             )}
 
-                                            {/* ช่องทางอัปโหลดสลิปแบบปกติ */}
                                             <div className="border-t border-gray-200 pt-4 mt-2">
                                                 <p className="text-sm font-bold text-gray-700 mb-2">
                                                     {userRole === 'donor' ? 'สแกน QR ด้านล่างแล้วแนบสลิปที่นี่' : 'หรือแนบหลักฐานการโอนด้วยตนเอง'}
                                                 </p>
                                                 
                                                 {userRole === 'donor' && (
-                                                    <div className="bg-white p-3 rounded-lg shadow-sm border inline-block mb-3 text-center">
-                                                        <img src={settings.qrCodeUrl} alt="QR Code" className="w-32 h-32 object-contain mx-auto" />
-                                                        <p className="text-xs text-gray-500 mt-1">{settings.bankInfo?.bankName}</p>
-                                                        <p className={`text-lg font-mono font-bold text-${theme}-700 mt-1`}>{settings.bankInfo?.accountNumber}</p>
+                                                    <div className="bg-white p-3 rounded-xl shadow-sm border mb-4 text-center">
+                                                        <div className="relative inline-block group">
+                                                            <img 
+                                                                src={settings.qrCodeUrl} 
+                                                                alt="QR Code" 
+                                                                className="w-36 h-36 object-contain mx-auto cursor-pointer group-hover:scale-105 transition-transform duration-300 rounded-lg drop-shadow-sm" 
+                                                                onClick={() => setShowFullQR(true)}
+                                                                title="คลิกเพื่อขยายรูป"
+                                                            />
+                                                            <div className="absolute bottom-2 right-2 bg-black/60 text-white p-1.5 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Search className="w-4 h-4" />
+                                                            </div>
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 mt-2 cursor-pointer hover:text-gray-800" onClick={() => setShowFullQR(true)}>🔍 คลิกที่รูปเพื่อขยาย</p>
                                                     </div>
                                                 )}
 
-                                                <label className="cursor-pointer block border-2 border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-100 transition text-center">
+                                                {/* แจ้งเตือนเรื่อง E-Donation (เพิ่มเข้ามาตามแบบในรูป) */}
+                                                {userRole === 'donor' && (
+                                                    <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-center">
+                                                        <p className="text-sm font-bold text-red-600">ไม่สามารถโอนผ่านหมายเลขบัญชีได้</p>
+                                                        <p className="text-xs text-red-500 mt-1">เนื่องจากเป็นระบบ E-Donation ของกรมสรรพากร</p>
+                                                    </div>
+                                                )}
+
+                                                <label className="cursor-pointer block border-2 border-dashed border-gray-300 rounded-xl p-4 hover:bg-orange-50 hover:border-orange-300 transition text-center group">
                                                     <div className="flex flex-col items-center justify-center">
-                                                        {isUploading ? <Loader className="w-6 h-6 animate-spin text-gray-400" /> : <UploadCloud className="w-6 h-6 text-gray-400 mb-1" />}
-                                                        <span className="text-sm text-gray-600 font-medium">
-                                                            {slipImage ? '✓ มีรูปสลิปแล้ว (คลิก)' : 'คลิกเพื่อเลือกไฟล์รูป'}
+                                                        {isUploading ? <Loader className="w-6 h-6 animate-spin text-gray-400" /> : <UploadCloud className="w-8 h-8 text-gray-400 mb-2 group-hover:text-orange-500 transition-colors" />}
+                                                        <span className="text-sm text-gray-600 font-medium group-hover:text-orange-600">
+                                                            {slipImage ? '✓ เปลี่ยนรูปสลิปใหม่ (คลิก)' : 'คลิกเพื่อเลือกไฟล์รูปสลิป'}
                                                         </span>
                                                     </div>
                                                     <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                                                 </label>
                                                 
-                                                {/* พรีวิวรูปสลิป */}
                                                 {slipImage && (
-                                                    <div className="mt-4 relative inline-block p-2 bg-white border rounded-xl shadow-sm w-full text-center">
-                                                        <img src={slipImage} alt="Preview" className="h-32 object-contain rounded mx-auto" />
-                                                        <button type="button" onClick={() => setSlipImage(null)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition"><X className="w-4 h-4" /></button>
+                                                    <div className="mt-4 relative inline-block p-2 bg-white border rounded-xl shadow-sm w-full text-center animate-scale-up">
+                                                        <img src={slipImage} alt="Preview" className="h-40 object-contain rounded mx-auto" />
+                                                        <button type="button" onClick={() => setSlipImage(null)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition hover:scale-110"><X className="w-4 h-4" /></button>
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center text-gray-400 py-4">
-                                            <ShoppingBag className="w-10 h-10 mb-2 opacity-50" />
-                                            <p className="text-sm">
+                                        <div className="flex flex-col items-center justify-center text-gray-400 py-8">
+                                            <ShoppingBag className="w-12 h-12 mb-3 opacity-50" />
+                                            <p className="text-sm text-center">
                                                 {method === 'เงินสด' && (userRole === 'staff' || userRole === 'admin') ? 'สถานะ: อนุมัติทันทีและออกใบเสร็จ' : 'รับเงินผ่านช่องทางที่ระบุ'}
                                             </p>
                                         </div>
@@ -1415,13 +1484,12 @@
                         </div>
                         {/* ========================================================= */}
 
-                        {/* ปุ่มยืนยัน (กว้างเต็มแถว ด้านล่างสุด) */}
                         <div className="mt-8 pt-6 border-t border-gray-200">
-                            <button type="submit" disabled={isUploading || isGeneratingBlessing} className={`w-full text-white font-bold py-4 px-4 rounded-xl hover:bg-${theme}-700 transition shadow-lg flex justify-center items-center text-xl ${(isUploading || isGeneratingBlessing) ? 'bg-gray-400 cursor-not-allowed' : `bg-${theme}-600`}`}>
+                            <button type="submit" disabled={isUploading || isGeneratingBlessing} className={`w-full text-white font-bold py-4 px-4 rounded-xl hover:bg-${theme}-700 transition shadow-lg flex justify-center items-center text-xl ${(isUploading || isGeneratingBlessing) ? 'bg-gray-400 cursor-not-allowed' : `bg-${theme}-600 hover:scale-[1.01]`}`}>
                                 {(isUploading || isGeneratingBlessing) ? (
-                                    <>กำลังประมวลผล...</>
+                                    <><Loader className="w-6 h-6 mr-2 animate-spin" /> กำลังประมวลผล...</>
                                 ) : (
-                                    <><CheckCircle className="w-7 h-7 mr-2 shrink-0" /> ยืนยันข้อมูล และออกใบเสร็จ</>
+                                    <><CheckCircle className="w-7 h-7 mr-2 shrink-0" /> ยืนยันข้อมูล และแจ้งความประสงค์</>
                                 )}
                             </button>
                         </div>
