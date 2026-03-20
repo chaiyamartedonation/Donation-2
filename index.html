@@ -957,22 +957,6 @@
         }
 
         // ==========================================
-        // ฟังก์ชันช่วยเช็คสถานะเปิด-ปิดระบบ (รวมตั้งเวลาอัตโนมัติ)
-        // ==========================================
-        const getSystemStatus = (settings) => {
-            if (settings.systemStatus === 'maintenance') return 'maintenance';
-            if (settings.systemStatus === 'closed') return 'closed';
-            if (settings.autoClose?.enabled) {
-                const now = new Date();
-                const currentStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-                const openStr = settings.autoClose.openTime || '06:00';
-                const closeStr = settings.autoClose.closeTime || '18:00';
-                if (currentStr < openStr || currentStr >= closeStr) return 'auto_closed';
-            }
-            return 'open';
-        };
-        
-        // ==========================================
         // Main Form Section
         // ==========================================
         function DonationForm({ loggedInUser, userRole, onSave, showNotification, settings }) {
@@ -1483,6 +1467,7 @@
                 </div>
             );
         }
+        
         // ==========================================
         // DataTables-style Dashboard
         // ==========================================
