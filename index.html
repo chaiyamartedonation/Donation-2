@@ -25,8 +25,7 @@
         }
     }
     </script>
-
-    <style>{`
+<style>{`
                         /* ========================================= */
                         /* 1. ระบบโหลดฟอนต์อัตโนมัติ */
                         /* ========================================= */
@@ -39,11 +38,11 @@
                             let googleFontName = font.replace(/ /g, '+');
                             if (font === 'Playpen Sans Thai') googleFontName = 'Playpen+Sans'; 
                             
-                            // เปลี่ยนวิธีเขียนเพื่อหลีกเลี่ยง Babel Parse Error
+                            // ใช้วิธีต่อ String แบบธรรมดา เพื่อป้องกัน Babel Error
                             let fontWeights = '300,400,500,600,700';
                             if (font === 'Thasadith') fontWeights = '400,700';
                             
-                            return \`@import url('https://fonts.googleapis.com/css2?family=\${googleFontName}:wght@\${fontWeights}&display=swap');\`;
+                            return "@import url('https://fonts.googleapis.com/css2?family=" + googleFontName + ":wght@" + fontWeights + "&display=swap');";
                         })()}
 
                         /* --- โหลดฟอนต์ส่วนตัวที่ฝากไว้บน Netlify --- */
