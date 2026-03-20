@@ -986,6 +986,7 @@
             );
         }
 
+        
         // ==========================================
         // Main Form Section
         // ==========================================
@@ -2085,6 +2086,22 @@
             );
         }
 
+        // ==========================================
+        // ฟังก์ชันช่วยเช็คสถานะเปิด-ปิดระบบ (รวมตั้งเวลาอัตโนมัติ)
+        // ==========================================
+        const getSystemStatus = (settings) => {
+            if (settings.systemStatus === 'maintenance') return 'maintenance';
+            if (settings.systemStatus === 'closed') return 'closed';
+            if (settings.autoClose?.enabled) {
+                const now = new Date();
+                const currentStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                const openStr = settings.autoClose.openTime || '06:00';
+                const closeStr = settings.autoClose.closeTime || '18:00';
+                if (currentStr < openStr || currentStr >= closeStr) return 'auto_closed';
+            }
+            return 'open';
+        };
+        
         function AdminSettingsPanel({ settings, onSave, onClearData }) {
             const [config, setConfig] = useState(settings);
             const [confirmClear, setConfirmClear] = useState('');
@@ -3536,20 +3553,86 @@
         // ==========================================
         // 7. APP & ROOT
         // ==========================================
-        function App() {
+       function App() {
             const [currentRoute, setCurrentRoute] = useState('home');
             const [donations, setDonations] = useState([]);
             const [settings, setSettings] = useState(DEFAULT_SETTINGS);
             const [loading, setLoading] = useState(true);
             const [user, setUser] = useState(null);
             const [notification, setNotification] = useState(null);
-            const [loggedInUser, setLoggedInUser] = useState(null);
-
+            
             const showNotification = (msg, type = 'success') => {
                 setNotification({ msg, type });
                 setTimeout(() => setNotification(null), 3000);
             };
 
+            // ==========================================
+            // 🌟 1. ระบบจำการล็อกอิน (Session Persistence)
+            // ==========================================
+            const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 นาที (หน่วยเป็นมิลลิวินาที)
+
+            const [loggedInUser, setLoggedInUserState] = useState(() => {
+                const savedUser = localStorage.getItem('temple_user');
+                const lastActivity = localStorage.getItem('temple_last_activity');
+                
+                // ถ้ารีเฟรชหน้าจอ ให้เช็คว่าเคยล็อกอินไว้ไหม และหมดเวลา 15 นาทีหรือยัง
+                if (savedUser && lastActivity) {
+                    if (new Date().getTime() - parseInt(lastActivity, 10) < SESSION_TIMEOUT) {
+                        return JSON.parse(savedUser);
+                    } else {
+                        localStorage.removeItem('temple_user');
+                        localStorage.removeItem('temple_last_activity');
+                    }
+                }
+                return null;
+            });
+
+            // สร้างฟังก์ชันครอบ setLoggedInUser เพื่อบันทึกลงเครื่องอัตโนมัติ
+            const setLoggedInUser = (userObj) => {
+                if (userObj) {
+                    localStorage.setItem('temple_user', JSON.stringify(userObj));
+                    localStorage.setItem('temple_last_activity', new Date().getTime().toString());
+                } else {
+                    localStorage.removeItem('temple_user');
+                    localStorage.removeItem('temple_last_activity');
+                }
+                setLoggedInUserState(userObj);
+            };
+
+            // ==========================================
+            // 🌟 2. ระบบเตะออกอัตโนมัติ (Auto Logout)
+            // ==========================================
+            useEffect(() => {
+                if (!loggedInUser) return;
+
+                // รีเซ็ตเวลาเมื่อมีการขยับเมาส์ พิมพ์คีย์บอร์ด หรือเลื่อนจอ
+                const resetTimer = () => {
+                    localStorage.setItem('temple_last_activity', new Date().getTime().toString());
+                };
+
+                // ดักจับการเคลื่อนไหวของผู้ใช้งาน
+                const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+                events.forEach(e => window.addEventListener(e, resetTimer));
+
+                // เช็คทุกๆ 10 วินาที ว่าหมดเวลา 15 นาทีหรือยัง
+                const interval = setInterval(() => {
+                    const lastAct = localStorage.getItem('temple_last_activity');
+                    if (lastAct && (new Date().getTime() - parseInt(lastAct, 10) > SESSION_TIMEOUT)) {
+                        setLoggedInUser(null);
+                        setCurrentRoute('home');
+                        showNotification('หมดเวลาการใช้งาน 15 นาที กรุณาเข้าสู่ระบบใหม่', 'error');
+                    }
+                }, 10000);
+
+                return () => {
+                    events.forEach(e => window.removeEventListener(e, resetTimer));
+                    clearInterval(interval);
+                };
+            }, [loggedInUser]);
+
+            // ==========================================
+            // โหลดระบบยืนยันตัวตน และ ฐานข้อมูล
+            // ==========================================
             useEffect(() => {
                 const initAuth = async () => {
                     try {
@@ -3584,6 +3667,9 @@
                 return () => unsubscribe();
             }, [user]);
 
+            // ==========================================
+            // ระบบแจ้งเตือน Email & LINE
+            // ==========================================
             const sendEmailNotification = async (donation) => {
                 const config = settings.emailNotify;
                 if (!config?.enabled || !config?.serviceId || !config?.templateId || !config?.publicKey) return;
@@ -3651,6 +3737,9 @@
                 }
             };
 
+            // ==========================================
+            // ดึงข้อมูลการรับบริจาค และ ฟังก์ชันจัดการข้อมูล
+            // ==========================================
             useEffect(() => {
                 if (!user) return;
                 const q = query(collection(db, 'donations')); 
@@ -3715,15 +3804,11 @@
             const handleUpdateSettings = async (newSettings) => {
                 if (!user) return;
                 try {
-                    // ทำความสะอาดข้อมูลทั่วไป (ล้างค่า undefined ที่ทำให้เกิด invalid nested entity)
                     const cleanSettings = JSON.parse(JSON.stringify(newSettings));
-                    
-                    // ส่งข้อมูลเข้าฐานข้อมูล
                     await setDoc(doc(db, 'settings', 'config'), cleanSettings);
                     showNotification('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว!');
                 } catch (e) {
                     console.error("Firebase Update Error:", e);
-                    // ถ้าแอบอัปโหลดรูปใหญ่เกิน 1MB มา มันจะแจ้งเตือนให้รู้ตัวแทนการลบทิ้งครับ
                     if (e.message.includes('exceeds the maximum allowed size')) {
                         showNotification("บันทึกไม่สำเร็จ: รูปภาพมีขนาดใหญ่เกิน 1MB กรุณาใช้รูปที่ไฟล์เล็กกว่านี้", 'error');
                     } else {
@@ -3749,7 +3834,7 @@
             };
 
             // ==========================================
-            // ส่วนที่ 2: ดักจับ URL ถ้าเป็นการแสกน QR Code ให้ออกไปหน้าอัปโหลดมือถือ
+            // ส่วนดักจับ URL อัปโหลดรูปสลิปจากมือถือ
             // ==========================================
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('upload_ref')) {
@@ -3760,23 +3845,64 @@
                             :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
                             body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { font-family: var(--font-dynamic) !important; }
                         `}</style>
-                        {/* เรียกแสดงหน้าอัปโหลดสลิปสำหรับมือถือ */}
                         <div className="flex-grow">
                             <RemoteSlipUpload db={db} />
                         </div>
                     </div>
                 );
             }
-            // ==========================================
 
+            // ==========================================
+            // โครงสร้างหน้าเว็บหลัก (Main App Render)
+            // ==========================================
             return (
                 <div className={`font-sans text-gray-800 flex flex-col min-h-screen`}>
+                    
+                    {/* 🌟 ดึงฟอนต์ใหม่ทั้งหมดที่เราตั้งค่าไว้มาใช้งาน 🌟 */}
                     <style>{`
-                        @import url('https://fonts.googleapis.com/css2?family=${settings.fontFamily || 'Prompt'}:wght@300;400;500;600;700&display=swap');
+                        /* โหลดฟอนต์จาก Google Fonts แบบอัตโนมัติ พร้อมเช็คความถูกต้องของน้ำหนักฟอนต์ */
+                        ${(() => {
+                            const font = settings.fontFamily || 'Prompt';
+                            // ถ้าเป็นฟอนต์ส่วนตัว ไม่ต้องดึงจาก Google
+                            if (['Chula', 'Cudlaimue', 'Layiji'].includes(font)) return '';
+                            
+                            // จัดรูปแบบชื่อฟอนต์ให้รองรับเว้นวรรค
+                            let googleFontName = font.replace(/ /g, '+');
+                            if (font === 'Playpen Sans Thai') googleFontName = 'Playpen+Sans'; 
+                            
+                            // Thasadith มีแค่น้ำหนัก 400 และ 700
+                            let weights = 'wght@300;400;500;600;700';
+                            if (font === 'Thasadith') weights = 'wght@400;700';
+                            
+                            return \`@import url('https://fonts.googleapis.com/css2?family=\${googleFontName}:\${weights}&display=swap');\`;
+                        })()}
+
+                        /* --- โหลดฟอนต์ส่วนตัวที่ฝากไว้บน Netlify --- */
+                        @font-face {
+                          font-family: 'Chula' !important;
+                          src: url('https://sunny-croquembouche-9d7d67.netlify.app/fonts/chulabhornlikittext-regular.woff2') format('woff2');
+                          font-weight: 400;
+                          font-display: swap;
+                        }
+
+                        @font-face {
+                          font-family: 'Cudlaimue' !important;
+                          src: url('https://sunny-croquembouche-9d7d67.netlify.app/fonts/cudlaimuespeedyr-regular-uhp9j3.woff2') format('woff2');
+                          font-display: swap;
+                        }
+
+                        @font-face {
+                          font-family: 'Layiji' !important;
+                          src: url('https://sunny-croquembouche-9d7d67.netlify.app/fonts/layijimahaniyomv1_61ot.woff2') format('woff2');
+                          font-display: swap;
+                        }
+
                         html { font-size: 80% !important; }
                         @media print { html { font-size: 100% !important; } }
                         :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
-                        body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { font-family: var(--font-dynamic) !important; }
+                        body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { 
+                            font-family: var(--font-dynamic) !important; 
+                        }
                     `}</style>
 
                     {notification && (<NotificationToast msg={notification.msg} type={notification.type} onClose={() => setNotification(null)} />)}
@@ -3813,7 +3939,6 @@
                         )}
                     </div>
 
-                    {/* เรียกใช้ Footer ไว้ล่างสุดนอกเงื่อนไข (จะโชว์ทุกหน้า!) */}
                     {!loading && <GlobalFooter settings={settings} />}
                 </div>
             );
