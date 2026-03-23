@@ -437,25 +437,63 @@
             const rcpSettings = settings.receipt || DEFAULT_SETTINGS.receipt;
             const templeLogo = rcpSettings.logoUrl || "https://img2.pic.in.th/pic/-Ver.3-1.png";
             
-            let printPurpose = donation.purpose;
-            if (!printPurpose || printPurpose === '-') {
-                printPurpose = rcpSettings.defaultPurpose;
-            } else if (donation.roongTaanDate) {
-                printPurpose = `จองโรงทาน วันที่ ${new Date(donation.roongTaanDate).toLocaleDateString('th-TH')} (${donation.roongTaanNote || ''})`;
+            // 🌟 ปรับปรุงการแยกรายการบริจาค (รองรับหลายรายการ) 🌟
+            let itemsList = [];
+            if (!donation.purpose || donation.purpose === '-') {
+                itemsList.push({ 
+                    description: rcpSettings.defaultPurpose, 
+                    amount: (donation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) 
+                });
+            } else {
+                // แยกรายการด้วยลูกน้ำ
+                const parts = donation.purpose.split(', ');
+                parts.forEach((part) => {
+                    let desc = part;
+                    let amtStr = '';
+
+                    // จัดการข้อความโรงทาน
+                    if (part === 'จองโรงทาน' && donation.roongTaanDate) {
+                        desc = `จองโรงทาน วันที่ ${new Date(donation.roongTaanDate).toLocaleDateString('th-TH')} (${donation.roongTaanNote || ''})`;
+                    }
+
+                    // ดึงจำนวนเงินออกจากข้อความ เช่น "(600 บาท)" หรือ "500 บาท"
+                    const match1 = desc.match(/\(([\d,\.]+)\s*บาท\)$/);
+                    const match2 = desc.match(/\s([\d,\.]+)\s*บาท$/);
+
+                    if (match1) {
+                        amtStr = match1[1];
+                        desc = desc.replace(match1[0], '').trim();
+                    } else if (match2) {
+                        amtStr = match2[1];
+                        desc = desc.replace(match2[0], '').trim();
+                    }
+
+                    // แปลงรูปแบบตัวเลขให้มีทศนิยม
+                    if (amtStr) {
+                        const parsedAmt = parseFloat(amtStr.replace(/,/g, ''));
+                        if (!isNaN(parsedAmt)) amtStr = parsedAmt.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                    } else if (part === 'จองโรงทาน' && donation.amount === 0) {
+                        amtStr = '-';
+                    }
+
+                    itemsList.push({ description: desc, amount: amtStr });
+                });
+
+                // ถ้าระบบหาจำนวนเงินแยกไม่ได้ และมีรายการเดียว ให้ใส่ยอดรวมทั้งหมด
+                if (itemsList.length === 1 && !itemsList[0].amount && donation.amount > 0) {
+                    itemsList[0].amount = (donation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+                }
             }
 
             const handleDownloadPDF = () => {
                 setIsExporting(true);
                 const element = document.getElementById('receipt-pdf-content');
-                
-                // เลื่อนหน้าจอไปบนสุดก่อนถ่ายภาพ ป้องกันพิกัดเพี้ยน
                 window.scrollTo(0, 0);
 
                 const opt = {
                     margin:       0,
                     filename:     `ใบเสร็จรับเงิน_${receiptNo}.pdf`,
                     image:        { type: 'jpeg', quality: 1.0 },
-                    // แก้บั๊กตัดขอบ: ลบ windowWidth ทิ้ง และใส่ scrollX, scrollY แทน
                     html2canvas:  { scale: 2.2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
                     jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' } 
                 };
@@ -473,12 +511,9 @@
 
             return (
                 <div className="fixed inset-0 bg-black/80 z-[150] flex flex-col items-center justify-start p-4 overflow-hidden">
-                    
-                    {/* Action Bar */}
                     <div className="bg-white rounded-xl px-4 py-3 flex justify-between items-center z-20 no-print shadow-xl w-full max-w-[794px] mb-4 shrink-0">
                         <h2 className="text-lg font-bold flex items-center text-gray-800">
-                            <ScrollText className="w-5 h-5 mr-2 text-orange-600"/> 
-                            ตัวอย่างใบเสร็จทางการ (A4 แนวตั้ง)
+                            <ScrollText className="w-5 h-5 mr-2 text-orange-600"/> ตัวอย่างใบเสร็จทางการ (A4 แนวตั้ง)
                         </h2>
                         <div className="flex gap-2">
                             <button onClick={handleDownloadPDF} disabled={isExporting} className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium flex items-center transition shadow">
@@ -494,26 +529,15 @@
                         </div>
                     </div>
 
-                    {/* Preview Area Container */}
-                    {/* แก้บั๊กตัดขอบ: เปลี่ยนจาก flex justify-center เป็น text-center */}
                     <div className="w-full max-w-[850px] flex-grow overflow-auto bg-gray-900/40 rounded-xl p-2 sm:p-6 hide-scrollbar text-center">
-                        
-                        {/* แก้บั๊กตัดขอบ: เพิ่ม inline-block, text-left และ margin: 0 auto */}
                         <div id="receipt-pdf-content" className="receipt-print-zone bg-white shadow-2xl relative shrink-0 inline-block text-left" 
                              style={{ margin: '0 auto', fontFamily: "'Sarabun', sans-serif", width: '794px', minHeight: '1050px', color: '#000', boxSizing: 'border-box', overflow: 'hidden' }}>
-                            
-                            {/* กรอบเส้นขอบด้านนอก */}
                             <div className="absolute inset-[15px] border border-gray-400 z-10 pointer-events-none" style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}></div>
-                            
-                            {/* ลายน้ำตรงกลาง */}
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0">
                                 <img src={templeLogo} crossOrigin="anonymous" style={{ width: '350px' }} alt="Watermark" />
                             </div>
 
-                            {/* ลด padding ลง */}
                             <div className="relative z-20 w-full h-full p-[35px] pt-[45px] flex flex-col">
-                                
-                                {/* --- ส่วนหัว (Header) --- */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '15px', marginBottom: '15px' }}>
                                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                         <div style={{ width: '65px', height: '65px' }}>
@@ -525,7 +549,7 @@
                                             <p style={{ fontSize: '14px', margin: 0, fontWeight: 'bold' }}>เลขประจำตัวผู้เสียภาษีอากร: {rcpSettings.taxId}</p>
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContnt: 'center' }}>
+                                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                         <h2 style={{ fontSize: '22px', fontWeight: 'bold', margin: '0 0 2px 0', color: '#000' }}>ใบเสร็จรับเงิน</h2>
                                         <p style={{ fontSize: '12px', margin: '0 0 8px 0', color: '#666', letterSpacing: '1px' }}>RECEIPT / TAX DEDUCTION</p>
                                         <table style={{ fontSize: '14px', marginLeft: 'auto', textAlign: 'left' }}>
@@ -543,7 +567,6 @@
                                     </div>
                                 </div>
 
-                                {/* --- ส่วนข้อมูลลูกค้า/ผู้บริจาค (Customer Info) --- */}
                                 <div style={{ marginBottom: '15px', fontSize: '16px' }}>
                                     <table style={{ width: '100%' }}>
                                         <tbody>
@@ -559,7 +582,6 @@
                                     </table>
                                 </div>
 
-                                {/* --- ส่วนตารางรายการ (Items Table) --- */}
                                 <div style={{ flexGrow: 1 }}>
                                     <table style={{ width: '100%', fontSize: '16px', borderCollapse: 'collapse' }}>
                                         <thead>
@@ -570,24 +592,33 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr>
-                                                <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', textAlign: 'center', verticalAlign: 'top' }}>1</td>
-                                                <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', verticalAlign: 'top' }}>
-                                                    {printPurpose}
-                                                    {donation.generalNote && <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>หมายเหตุ: {donation.generalNote}</div>}
-                                                </td>
-                                                <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold' }}>
-                                                    {(donation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style={{ padding: '8px' }}></td><td style={{ padding: '8px' }}></td><td style={{ padding: '8px' }}></td>
-                                            </tr>
+                                            {/* 🌟 แสดงตารางจากข้อมูลที่แยกไว้ 🌟 */}
+                                            {itemsList.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', textAlign: 'center', verticalAlign: 'top' }}>{idx + 1}</td>
+                                                    <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', verticalAlign: 'top' }}>
+                                                        {item.description}
+                                                        {/* นำหมายเหตุไปแปะใต้บรรทัดสุดท้าย */}
+                                                        {idx === itemsList.length - 1 && donation.generalNote && (
+                                                            <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>หมายเหตุ: {donation.generalNote}</div>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ borderBottom: '1px dashed #999', padding: '12px 8px', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold' }}>
+                                                        {item.amount || '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            
+                                            {/* เติมช่องว่างให้ครบ 3 บรรทัดถ้าข้อมูลน้อย */}
+                                            {itemsList.length < 3 && [...Array(3 - itemsList.length)].map((_, i) => (
+                                                <tr key={`empty-${i}`}>
+                                                    <td style={{ padding: '12px 8px' }}>&nbsp;</td><td style={{ padding: '12px 8px' }}></td><td style={{ padding: '12px 8px' }}></td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                 </div>
 
-                                {/* --- ส่วนสรุปยอด (Totals) --- */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px', borderTop: '2px solid #000', paddingTop: '15px' }}>
                                     <div style={{ width: '60%' }}>
                                         <div style={{ backgroundColor: '#f1f5f9', padding: '8px 15px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', border: '1px solid #cbd5e1' }} style={{WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
@@ -608,13 +639,11 @@
                                     </div>
                                 </div>
 
-                                {/* --- ข้อความอ้างอิงสรรพากร --- */}
                                 <div style={{ marginTop: '20px', fontSize: '13px', color: '#4b5563', textAlign: 'center' }}>
                                     <p style={{ margin: '0 0 4px 0' }}>" สุโข ปุญฺญสฺส อุจฺจโย : การสั่งสมบุญนำสุขมาให้ "</p>
                                     <p style={{ margin: 0, fontWeight: 'bold', color: '#000' }}>* เอกสารฉบับนี้เป็นใบเสร็จรับเงินที่สมบูรณ์ สามารถนำไปใช้เป็นหลักฐานประกอบการลดหย่อนภาษีได้ (e-Donation)</p>
                                 </div>
 
-                                {/* --- ส่วนลายเซ็น (Signatures) --- */}
                                 <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '35px', fontSize: '14px', textAlign: 'center' }}>
                                     <div style={{ width: '35%' }}>
                                         <div style={{ borderBottom: '1px solid #000', marginBottom: '8px', height: '40px' }}></div>
@@ -624,10 +653,10 @@
                                     <div style={{ width: '35%', position: 'relative' }}>
                                         <div style={{ borderBottom: '1px solid #000', marginBottom: '8px', height: '40px', position: 'relative' }}>
                                             {rcpSettings.signatureUrl && (
-                                                <img src={rcpSettings.signatureUrl} crossOrigin="anonymous" style={{ position: 'absolute', bottom: '2px', left: '0', right: '0', margin: 'auto', maxHeight: '55px', mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
+                                                <img src={rcpSettings.signatureUrl} crossOrigin="anonymous" style={{ position: 'absolute', bottom: '2px', left: '0', right: '0', margin: 'auto', maxHeight: '90px', mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
                                             )}
                                             {rcpSettings.stampUrl && (
-                                                <img src={rcpSettings.stampUrl} crossOrigin="anonymous" style={{ position: 'absolute', top: '-35px', right: '-20px', maxHeight: '85px', mixBlendMode: 'multiply', transform: 'rotate(-15deg)', opacity: 0.8 }} alt="ตราประทับ" />
+                                                <img src={rcpSettings.stampUrl} crossOrigin="anonymous" style={{ position: 'absolute', top: '-110px', right: '-80px', maxHeight: '320px', mixBlendMode: 'multiply', transform: 'rotate(-15deg)', opacity: 0.8 }} alt="ตราประทับ" />
                                             )}
                                         </div>
                                         <p style={{ margin: 0, fontWeight: 'bold' }}>( {rcpSettings.abbotName} )</p>
@@ -641,7 +670,6 @@
                 </div>
             );
         }
-
         // ----- Login & Reset Password Modal -----
         function LoginScreen({ onClose, onLoginSuccess, onUpdateSettings, showNotification, settings }) {
             const [username, setUsername] = useState('');
@@ -1267,7 +1295,7 @@
                                         className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-${theme}-500 outline-none text-lg`} 
                                         value={name} 
                                         onChange={e => setName(e.target.value)} 
-                                        placeholder="ชื่อ-สกุลผู้บริจาค มากกว่า 1 คนได้" 
+                                        placeholder="เช่น ครอบครัวใจดี, นาย ก และ นาง ข (สามารถพิมพ์หลายชื่อได้)" 
                                     ></textarea>
                                 </div>
 
@@ -2112,7 +2140,10 @@
                         phone: String(config.contact?.phone || ''),
                         address: String(config.contact?.address || ''),
                         facebook: String(config.contact?.facebook || ''),
-                        line: String(config.contact?.line || '')
+                        line: String(config.contact?.line || ''),
+                        footerSubtitle: String(config.contact?.footerSubtitle || ''),
+                        openHours: String(config.contact?.openHours || ''),
+                        openDays: String(config.contact?.openDays || '')
                     },
                     messages: {
                         thankYou: String(config.messages?.thankYou || '')
@@ -2366,7 +2397,23 @@
                                     </div>
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm font-medium mb-1">รูปภาพประกอบ</label>
+                                            <label className="block text-sm font-medium mb-1">รูปภาพประกอบ (วางลิงก์ URL หรือ อัปโหลด)</label>
+                                            
+                                            {/* เพิ่มช่องสำหรับใส่ Link รูปภาพ */}
+                                            <input 
+                                                type="text" 
+                                                className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 mb-3 text-sm" 
+                                                placeholder="วางลิงก์รูปภาพ (URL) ที่นี่... (แนะนำเพื่อประหยัดพื้นที่)" 
+                                                value={config.about?.imageUrl?.startsWith('data:image') ? '' : (config.about?.imageUrl || '')} 
+                                                onChange={e => setConfig({...config, about: { ...config.about, imageUrl: e.target.value }})} 
+                                            />
+
+                                            <div className="flex items-center justify-center mb-3">
+                                                <hr className="w-full border-gray-200" />
+                                                <span className="px-3 text-xs text-gray-400 whitespace-nowrap">หรืออัปโหลด (ขนาดไฟล์ไม่เกิน 1MB)</span>
+                                                <hr className="w-full border-gray-200" />
+                                            </div>
+
                                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
                                                 <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={handleAboutImageUpload} disabled={isUploading} />
                                                 {isUploading ? (
@@ -2377,7 +2424,7 @@
                                                 ) : config.about?.imageUrl ? (
                                                     <div className="relative">
                                                         <img src={config.about.imageUrl} alt="Preview" className="max-h-48 mx-auto rounded shadow" />
-                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูป</div>
+                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป หรือวางลิงก์ใหม่ด้านบน</div>
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col items-center text-gray-500">
@@ -2748,8 +2795,49 @@
                             </div>
                         )}
 
-                        {activeSection === 'contact' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><MapPin className="w-5 h-5 mr-2" /> ข้อมูลติดต่อ</h3><div className="space-y-3"><div><label className="text-sm font-medium">เบอร์โทรศัพท์</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.phone} onChange={e => setConfig({...config, contact: {...config.contact, phone: e.target.value}})} /></div><div><label className="text-sm font-medium">ที่อยู่</label><textarea rows="3" className="w-full p-2 border rounded" value={config.contact?.address} onChange={e => setConfig({...config, contact: {...config.contact, address: e.target.value}})}></textarea></div></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><MessageCircle className="w-5 h-5 mr-2" /> โซเชียลมีเดีย</h3><div className="space-y-3"><div><label className="text-sm font-medium">Facebook Link</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.facebook || ''} onChange={e => setConfig({...config, contact: {...config.contact, facebook: e.target.value}})} placeholder="https://facebook.com/..." /></div><div><label className="text-sm font-medium">Line Link / ID</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.line || ''} onChange={e => setConfig({...config, contact: {...config.contact, line: e.target.value}})} placeholder="https://line.me/..." /></div></div></div></div></div>)}
-                        
+                        {activeSection === 'contact' && (
+                            <div className="space-y-6 animate-fade-in">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4 flex items-center"><MapPin className="w-5 h-5 mr-2" /> ข้อมูลติดต่อ</h3>
+                                        <div className="space-y-3">
+                                            <div><label className="text-sm font-medium">เบอร์โทรศัพท์</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.phone || ''} onChange={e => setConfig({...config, contact: {...config.contact, phone: e.target.value}})} /></div>
+                                            <div><label className="text-sm font-medium">ที่อยู่</label><textarea rows="3" className="w-full p-2 border rounded" value={config.contact?.address || ''} onChange={e => setConfig({...config, contact: {...config.contact, address: e.target.value}})}></textarea></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4 flex items-center"><MessageCircle className="w-5 h-5 mr-2" /> โซเชียลมีเดีย</h3>
+                                        <div className="space-y-3">
+                                            <div><label className="text-sm font-medium">Facebook Link</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.facebook || ''} onChange={e => setConfig({...config, contact: {...config.contact, facebook: e.target.value}})} placeholder="https://facebook.com/..." /></div>
+                                            <div><label className="text-sm font-medium">Line Link / ID</label><input type="text" className="w-full p-2 border rounded" value={config.contact?.line || ''} onChange={e => setConfig({...config, contact: {...config.contact, line: e.target.value}})} placeholder="https://line.me/..." /></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* 🌟 ส่วนที่เพิ่มใหม่: ตั้งค่าข้อความส่วนท้ายเว็บ (Footer) 🌟 */}
+                                <div className="pt-6 border-t mt-4">
+                                    <h3 className="text-lg font-bold mb-4 flex items-center"><Layout className="w-5 h-5 mr-2 text-orange-600" /> ข้อความส่วนท้ายเว็บไซต์ (Footer)</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-sm font-medium">คำโปรย / สโลแกน (ใต้ชื่อวัด)</label>
+                                                <input type="text" className="w-full p-2 border rounded" value={config.contact?.footerSubtitle !== undefined ? config.contact.footerSubtitle : 'ร่วมสร้างบุญกุศล สะสมบารมี เป็นที่พึ่งทางใจของชาวพุทธ'} onChange={e => setConfig({...config, contact: {...config.contact, footerSubtitle: e.target.value}})} placeholder="ร่วมสร้างบุญกุศล สะสมบารมี..." />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-sm font-medium">เวลาทำการ (เช่น 06:00 - 18:00 น.)</label>
+                                                <input type="text" className="w-full p-2 border rounded" value={config.contact?.openHours !== undefined ? config.contact.openHours : '06:00 - 18:00 น.'} onChange={e => setConfig({...config, contact: {...config.contact, openHours: e.target.value}})} placeholder="06:00 - 18:00 น." />
+                                            </div>
+                                            <div>
+                                                <label className="text-sm font-medium">วันทำการ (เช่น เปิดทำการทุกวัน)</label>
+                                                <input type="text" className="w-full p-2 border rounded" value={config.contact?.openDays !== undefined ? config.contact.openDays : 'เปิดทำการทุกวัน ไม่มีวันหยุด'} onChange={e => setConfig({...config, contact: {...config.contact, openDays: e.target.value}})} placeholder="เปิดทำการทุกวัน ไม่มีวันหยุด" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {activeSection === 'security' && (
                             <div className="space-y-6 animate-fade-in">
                                 <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4 text-sm text-yellow-800"><AlertTriangle className="w-4 h-4 inline mr-1" /> เมนูจัดการ Username / Password ย้ายไปอยู่ที่เมนู <b>ผู้ใช้งาน (Users)</b> แล้ว</div>
@@ -2795,7 +2883,9 @@
             }, [isAuthenticated, userRole, perms]);
 
             const handleLogout = () => { 
-                window.location.reload(); 
+                setLoggedInUser(null); // ล้างข้อมูลที่จำไว้ในเครื่อง
+                onBack(); // เด้งกลับหน้าหลัก
+                showNotification('ออกจากระบบเรียบร้อยแล้ว');
             };
             
             const toggleAnnounced = (id, status) => { 
@@ -2937,7 +3027,7 @@
             );
         }
 
-        function OfficialWebsite({ onNavigate, donations, settings, setLoggedInUser, showNotification, onUpdateSettings }) {
+        function OfficialWebsite({ onNavigate, donations, settings, setLoggedInUser, showNotification, onUpdateSettings, loggedInUser }) {
             const [isScrolled, setIsScrolled] = useState(false);
             const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
             const [newsList, setNewsList] = useState([]);
@@ -2963,6 +3053,15 @@
                     setShowPopup(true);
                 }
             }, [settings.popup?.enabled, settings.popup?.imageUrl]);
+
+            // 🌟 เช็คว่าล็อกอินค้างไว้อยู่หรือไม่ 🌟
+            const handleAdminClick = () => {
+                if (loggedInUser) {
+                    onNavigate('donate-system'); // ถ้ามีล็อกอินค้างไว้ ให้เด้งไปหน้าแอดมินเลย
+                } else {
+                    setShowLoginModal(true); // ถ้าไม่มี ค่อยให้โชว์ฟอร์มกรอกรหัส
+                }
+            };
 
             const renderHeading = () => {
                 if (!aboutHighlight) return aboutHeading;
@@ -3014,8 +3113,8 @@
                         <h1 className="text-3xl font-bold mb-2">ปิดปรับปรุงชั่วคราว</h1>
                         <p>ระบบกำลังดำเนินการปรับปรุง ขออภัยในความไม่สะดวก</p>
                         <p className="mt-4 text-sm text-gray-500">{settings.templeName}</p>
-                        <button onClick={() => setShowLoginModal(true)} className={`absolute top-4 right-4 p-2 text-gray-400 hover:text-${theme}-600 transition-colors flex items-center gap-1 group`} title="ผู้ดูแลระบบ">
-                            <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">เข้าสู่ระบบจัดการ</span>
+                        <button onClick={handleAdminClick} className={`absolute top-4 right-4 p-2 text-gray-400 hover:text-${theme}-600 transition-colors flex items-center gap-1 group`} title="ผู้ดูแลระบบ">
+                            <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">{loggedInUser ? 'กลับสู่ระบบจัดการ' : 'เข้าสู่ระบบจัดการ'}</span>
                             <Lock className="w-5 h-5" />
                         </button>
                         {showLoginModal && (
@@ -3103,24 +3202,24 @@
 
                                     {settings.systemStatus === 'open' ? (
                                         <div className="flex gap-3 items-center">
-                                            <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-6 py-2.5 rounded-full font-bold flex items-center shadow-lg hover:shadow-orange-500/50 transition-all duration-300 transform hover:-translate-y-1`}>
+                                            <button onClick={() => { onNavigate('donate-system'); }} className={`bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-6 py-2.5 rounded-full font-bold flex items-center shadow-lg hover:shadow-orange-500/50 transition-all duration-300 transform hover:-translate-y-1`}>
                                                 <HeartHandshake className="w-4 h-4 mr-2" /> ร่วมทำบุญออนไลน์
                                             </button>
                                             
-                                            <button onClick={() => setShowLoginModal(true)} className="group relative px-5 py-2.5 rounded-full overflow-hidden shadow-lg hover:shadow-gray-900/30 transition-all duration-300 transform hover:-translate-y-1 bg-gray-900 border border-gray-700">
+                                            <button onClick={handleAdminClick} className="group relative px-5 py-2.5 rounded-full overflow-hidden shadow-lg hover:shadow-gray-900/30 transition-all duration-300 transform hover:-translate-y-1 bg-gray-900 border border-gray-700">
                                                 <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
                                                 <div className="relative flex items-center text-white font-medium text-sm tracking-wide">
                                                     <Lock className="w-4 h-4 mr-2 group-hover:animate-bounce" />
-                                                    <span>ผู้ดูแลระบบ</span>
+                                                    <span>{loggedInUser ? 'ระบบจัดการ' : 'ผู้ดูแลระบบ'}</span>
                                                 </div>
                                             </button>
                                         </div>
                                     ) : (
-                                        <button onClick={() => setShowLoginModal(true)} className="group relative px-6 py-2.5 rounded-full overflow-hidden shadow-lg hover:shadow-gray-900/30 transition-all duration-300 transform hover:-translate-y-1 bg-gray-900 border border-gray-700">
+                                        <button onClick={handleAdminClick} className="group relative px-6 py-2.5 rounded-full overflow-hidden shadow-lg hover:shadow-gray-900/30 transition-all duration-300 transform hover:-translate-y-1 bg-gray-900 border border-gray-700">
                                             <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
                                             <div className="relative flex items-center text-white font-bold text-sm tracking-wide">
                                                 <Lock className="w-4 h-4 mr-2 group-hover:animate-bounce" />
-                                                <span>เข้าสู่ระบบจัดการ</span>
+                                                <span>{loggedInUser ? 'กลับสู่ระบบจัดการ' : 'เข้าสู่ระบบจัดการ'}</span>
                                             </div>
                                         </button>
                                     )}
@@ -3145,16 +3244,16 @@
 
                                     {settings.systemStatus === 'open' ? (
                                         <>
-                                            <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`mt-4 w-full bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
+                                            <button onClick={() => { setMobileMenuOpen(false); onNavigate('donate-system'); }} className={`mt-4 w-full bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
                                                 <HeartHandshake className="w-5 h-5 mr-2" /> ร่วมทำบุญออนไลน์
                                             </button>
-                                            <button onClick={() => { setMobileMenuOpen(false); setShowLoginModal(true); }} className={`mt-2 w-full bg-gray-900 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
-                                                <Lock className="w-5 h-5 mr-2" /> เข้าสู่ระบบ (ผู้ดูแล)
+                                            <button onClick={() => { setMobileMenuOpen(false); handleAdminClick(); }} className={`mt-2 w-full bg-gray-900 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
+                                                <Lock className="w-5 h-5 mr-2" /> {loggedInUser ? 'ระบบจัดการ' : 'เข้าสู่ระบบ (ผู้ดูแล)'}
                                             </button>
                                         </>
                                     ) : (
-                                        <button onClick={() => { setMobileMenuOpen(false); setShowLoginModal(true); }} className={`mt-4 w-full bg-gray-900 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
-                                            <Lock className="w-5 h-5 mr-2" /> เข้าสู่ระบบจัดการ
+                                        <button onClick={() => { setMobileMenuOpen(false); handleAdminClick(); }} className={`mt-4 w-full bg-gray-900 text-white px-4 py-4 rounded-xl font-bold flex justify-center items-center shadow-md`}>
+                                            <Lock className="w-5 h-5 mr-2" /> {loggedInUser ? 'กลับสู่ระบบจัดการ' : 'เข้าสู่ระบบจัดการ'}
                                         </button>
                                     )}
                                 </div>
@@ -3182,7 +3281,7 @@
                             
                             {settings.systemStatus === 'open' ? (
                                 <div className="flex flex-col sm:flex-row flex-wrap gap-5 justify-center">
-                                    <button onClick={() => { setLoggedInUser(null); onNavigate('donate-system'); }} className={`bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_rgba(249,115,22,0.5)] hover:shadow-[0_0_30px_rgba(249,115,22,0.8)] border border-white/20 animate-glow`}>
+                                    <button onClick={() => { onNavigate('donate-system'); }} className={`bg-animate-gradient bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_rgba(249,115,22,0.5)] hover:shadow-[0_0_30px_rgba(249,115,22,0.8)] border border-white/20 animate-glow`}>
                                         <HeartHandshake className="w-6 h-6 mr-2" /> ร่วมบริจาค / จองโรงทาน
                                     </button>
                                     
@@ -3326,92 +3425,17 @@
                 </div>
             );
         }
-        // ==========================================
-        // ระบบอัปโหลดสลิปผ่านมือถือ (Remote Slip Upload)
-        // ==========================================
-        function RemoteSlipUpload({ db }) {
-            const [status, setStatus] = useState('waiting'); // waiting, uploading, success, error
-            const [preview, setPreview] = useState(null);
-            const urlParams = new URLSearchParams(window.location.search);
-            const sessionId = urlParams.get('upload_ref');
-        
-            if (!sessionId) return <div className="p-8 text-center text-red-500 font-bold">❌ ลิงก์ไม่ถูกต้อง หรือหมดอายุแล้ว</div>;
-        
-            const handleMobileUpload = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                setStatus('uploading');
-                try {
-                    // 1. ย่อรูป
-                    const resizedImage = await resizeImage(file);
-                    setPreview(resizedImage);
-                    
-                    // 2. ส่งรูปเข้า Firebase เพื่อให้หน้าจอเจ้าหน้าที่เด้งรับ
-                    await updateDoc(doc(db, 'temp_uploads', sessionId), {
-                        slipImage: resizedImage,
-                        status: 'completed',
-                        updatedAt: new Date().toISOString()
-                    });
-                    
-                    setStatus('success');
-                } catch (error) {
-                    console.error(error);
-                    setStatus('error');
-                }
-            };
-        
-            return (
-                <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-prompt">
-                    <div className="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center">
-                        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <UploadCloud className="w-8 h-8 text-orange-600" />
-                        </div>
-                        <h2 className="text-xl font-bold text-gray-800 mb-2">อัปโหลดสลิปโอนเงิน</h2>
-                        <p className="text-sm text-gray-500 mb-6">กรุณาแนบภาพสลิป เพื่อส่งให้เจ้าหน้าที่</p>
-        
-                        {status === 'waiting' && (
-                            <label className="block w-full bg-orange-600 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition cursor-pointer">
-                                เลือกรูปสลิปจากมือถือ
-                                <input type="file" accept="image/*" className="hidden" onChange={handleMobileUpload} />
-                            </label>
-                        )}
-        
-                        {status === 'uploading' && (
-                            <div className="py-8 flex flex-col items-center">
-                                <Loader className="w-10 h-10 text-orange-500 animate-spin mb-4" />
-                                <p className="text-orange-600 font-bold animate-pulse">กำลังส่งรูปให้เจ้าหน้าที่...</p>
-                            </div>
-                        )}
-        
-                        {status === 'success' && (
-                            <div className="py-4 animate-scale-up">
-                                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold text-green-600 mb-2">ส่งสลิปสำเร็จ!</h3>
-                                <p className="text-sm text-gray-500 mb-4">ระบบบันทึกรูปภาพเรียบร้อยแล้ว<br/>คุณสามารถปิดหน้านี้ได้เลยครับ</p>
-                                {preview && <img src={preview} alt="Slip" className="w-32 mx-auto rounded-lg border shadow-sm" />}
-                            </div>
-                        )}
-        
-                        {status === 'error' && (
-                            <div className="py-4">
-                                <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                                <h3 className="text-lg font-bold text-red-600 mb-2">เกิดข้อผิดพลาด</h3>
-                                <p className="text-sm text-gray-500 mb-4">ไฟล์อาจใหญ่เกินไป หรือการเชื่อมต่อมีปัญหา</p>
-                                <button onClick={() => setStatus('waiting')} className="bg-gray-200 px-6 py-2 rounded-lg font-bold">ลองใหม่อีกครั้ง</button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        }
 
         // ==========================================
-        // ส่วนท้ายเว็บไซต์ (Global Footer) แบบดั้งเดิมของคุณ
+        // ส่วนท้ายเว็บไซต์ (Global Footer)
         // ==========================================
         function GlobalFooter({ settings }) {
-            // กำหนด theme พื้นฐานเผื่อ settings ยังโหลดไม่เสร็จ
             const theme = settings?.themeColor || 'orange';
+            
+            // ดึงค่ามาจาก settings ถ้ายังไม่ได้ตั้งค่า ให้ใช้ค่าเริ่มต้น
+            const footerSubtitle = settings?.contact?.footerSubtitle !== undefined ? settings.contact.footerSubtitle : 'ร่วมสร้างบุญกุศล สะสมบารมี เป็นที่พึ่งทางใจของชาวพุทธ';
+            const openHours = settings?.contact?.openHours !== undefined ? settings.contact.openHours : '06:00 - 18:00 น.';
+            const openDays = settings?.contact?.openDays !== undefined ? settings.contact.openDays : 'เปิดทำการทุกวัน ไม่มีวันหยุด';
         
             return (
                 <footer id="contact" className={`bg-gray-900 text-white pt-20 pb-10 mt-auto border-t-[8px] border-${theme}-500 w-full z-50 no-print`}>
@@ -3424,7 +3448,7 @@
                                     </div>
                                     <span className="text-3xl font-bold text-white tracking-tight">{settings?.templeName || 'ชื่อวัด'}</span>
                                 </div>
-                                <p className="text-gray-400 mb-6 font-light">ร่วมสร้างบุญกุศล สะสมบารมี เป็นที่พึ่งทางใจของชาวพุทธ</p>
+                                <p className="text-gray-400 mb-6 font-light">{footerSubtitle}</p>
                                 <div className="flex space-x-4">
                                     {settings?.contact?.facebook && <a href={settings.contact.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all duration-300"><Facebook className="w-5 h-5" /></a>}
                                     {settings?.contact?.line && <a href={settings.contact.line} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-green-500 hover:text-white transition-all duration-300"><MessageCircle className="w-5 h-5" /></a>}
@@ -3449,8 +3473,8 @@
                                     <div className="flex justify-between items-center mb-2">
                                         <span className="text-gray-300">เปิดให้เข้าชม/ทำบุญ</span>
                                     </div>
-                                    <div className={`text-2xl font-bold text-${theme}-400 font-mono`}>06:00 - 18:00 น.</div>
-                                    <p className="text-gray-500 text-sm mt-2">เปิดทำการทุกวัน ไม่มีวันหยุด</p>
+                                    <div className={`text-2xl font-bold text-${theme}-400 font-mono`}>{openHours}</div>
+                                    <p className="text-gray-500 text-sm mt-2">{openDays}</p>
                                 </div>
                             </div>
                         </div>
@@ -3464,23 +3488,96 @@
                 </footer>
             );
         }
-                    
+
         // ==========================================
         // 7. APP & ROOT
         // ==========================================
         function App() {
-            const [currentRoute, setCurrentRoute] = useState('home');
+            const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 นาที
+            
+            // เพิ่มระบบจำหน้าล่าสุด (รีเฟรชแล้วอยู่หน้าเดิม)
+            const [currentRoute, setCurrentRoute] = useState(() => {
+                const savedRoute = localStorage.getItem('temple_current_route');
+                const lastActivity = localStorage.getItem('temple_last_activity');
+                if (savedRoute === 'donate-system' && lastActivity && (new Date().getTime() - parseInt(lastActivity, 10) < SESSION_TIMEOUT)) {
+                    return 'donate-system';
+                }
+                return 'home';
+            });
+
             const [donations, setDonations] = useState([]);
             const [settings, setSettings] = useState(DEFAULT_SETTINGS);
             const [loading, setLoading] = useState(true);
             const [user, setUser] = useState(null);
             const [notification, setNotification] = useState(null);
-            const [loggedInUser, setLoggedInUser] = useState(null);
+            
+            // บันทึกหน้าปัจจุบันลงเครื่อง
+            useEffect(() => {
+                localStorage.setItem('temple_current_route', currentRoute);
+            }, [currentRoute]);
 
             const showNotification = (msg, type = 'success') => {
                 setNotification({ msg, type });
                 setTimeout(() => setNotification(null), 3000);
             };
+
+            // ==========================================
+            // 🌟 1. ระบบจำการล็อกอิน (Session Persistence)
+            // ==========================================
+            const [loggedInUser, setLoggedInUserState] = useState(() => {
+                const savedUser = localStorage.getItem('temple_user');
+                const lastActivity = localStorage.getItem('temple_last_activity');
+                
+                // ถ้ารีเฟรชหน้าจอ ให้เช็คว่าเคยล็อกอินไว้ไหม และหมดเวลาหรือยัง
+                if (savedUser && lastActivity) {
+                    if (new Date().getTime() - parseInt(lastActivity, 10) < SESSION_TIMEOUT) {
+                        return JSON.parse(savedUser);
+                    } else {
+                        localStorage.removeItem('temple_user');
+                        localStorage.removeItem('temple_last_activity');
+                    }
+                }
+                return null;
+            });
+
+            const setLoggedInUser = (userObj) => {
+                if (userObj) {
+                    localStorage.setItem('temple_user', JSON.stringify(userObj));
+                    localStorage.setItem('temple_last_activity', new Date().getTime().toString());
+                } else {
+                    localStorage.removeItem('temple_user');
+                    localStorage.removeItem('temple_last_activity');
+                }
+                setLoggedInUserState(userObj);
+            };
+
+            // ==========================================
+            // 🌟 2. ระบบเตะออกอัตโนมัติ (Auto Logout)
+            // ==========================================
+            useEffect(() => {
+                if (!loggedInUser) return;
+
+                const resetTimer = () => {
+                    localStorage.setItem('temple_last_activity', new Date().getTime().toString());
+                };
+
+                const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+                events.forEach(e => window.addEventListener(e, resetTimer));
+
+                const interval = setInterval(() => {
+                    const lastAct = localStorage.getItem('temple_last_activity');
+                    if (lastAct && (new Date().getTime() - parseInt(lastAct, 10) > SESSION_TIMEOUT)) {
+                        setLoggedInUser(null);
+                        setCurrentRoute('home');
+                        showNotification('หมดเวลาการใช้งาน 15 นาที กรุณาเข้าสู่ระบบใหม่', 'error');
+                    }
+                }, 10000);
+
+                return () => {
+                    events.forEach(e => window.removeEventListener(e, resetTimer));
+                    clearInterval(interval);
+                };
+            }, [loggedInUser]);
 
             useEffect(() => {
                 const initAuth = async () => {
@@ -3647,15 +3744,11 @@
             const handleUpdateSettings = async (newSettings) => {
                 if (!user) return;
                 try {
-                    // ทำความสะอาดข้อมูลทั่วไป (ล้างค่า undefined ที่ทำให้เกิด invalid nested entity)
                     const cleanSettings = JSON.parse(JSON.stringify(newSettings));
-                    
-                    // ส่งข้อมูลเข้าฐานข้อมูล
                     await setDoc(doc(db, 'settings', 'config'), cleanSettings);
                     showNotification('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว!');
                 } catch (e) {
                     console.error("Firebase Update Error:", e);
-                    // ถ้าแอบอัปโหลดรูปใหญ่เกิน 1MB มา มันจะแจ้งเตือนให้รู้ตัวแทนการลบทิ้งครับ
                     if (e.message.includes('exceeds the maximum allowed size')) {
                         showNotification("บันทึกไม่สำเร็จ: รูปภาพมีขนาดใหญ่เกิน 1MB กรุณาใช้รูปที่ไฟล์เล็กกว่านี้", 'error');
                     } else {
@@ -3680,9 +3773,6 @@
                 }
             };
 
-            // ==========================================
-            // ส่วนที่ 2: ดักจับ URL ถ้าเป็นการแสกน QR Code ให้ออกไปหน้าอัปโหลดมือถือ
-            // ==========================================
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('upload_ref')) {
                 return (
@@ -3692,19 +3782,47 @@
                             :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
                             body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { font-family: var(--font-dynamic) !important; }
                         `}</style>
-                        {/* เรียกแสดงหน้าอัปโหลดสลิปสำหรับมือถือ */}
                         <div className="flex-grow">
                             <RemoteSlipUpload db={db} />
                         </div>
                     </div>
                 );
             }
-            // ==========================================
 
             return (
                 <div className={`font-sans text-gray-800 flex flex-col min-h-screen`}>
+                    
+                    {/* ระบบโหลดฟอนต์ Google Fonts အัฃริยะ */}
                     <style>{`
-                        @import url('https://fonts.googleapis.com/css2?family=${settings.fontFamily || 'Prompt'}:wght@300;400;500;600;700&display=swap');
+                        ${(() => {
+                            const font = settings.fontFamily || 'Prompt';
+                            if (['Chula', 'Cudlaimue', 'Layiji'].includes(font)) return '';
+                            let googleFontName = font.replace(/ /g, '+');
+                            if (font === 'Playpen Sans Thai') googleFontName = 'Playpen+Sans'; 
+                            let fontWeights = '300,400,500,600,700';
+                            if (font === 'Thasadith') fontWeights = '400,700';
+                            return "@import url('https://fonts.googleapis.com/css2?family=" + googleFontName + ":wght@" + fontWeights + "&display=swap');";
+                        })()}
+
+                        @font-face {
+                          font-family: 'Chula' !important;
+                          src: url('https://sunny-croquembouche-9d7d67.netlify.app/fonts/chulabhornlikittext-regular.woff2') format('woff2');
+                          font-weight: 400;
+                          font-display: swap;
+                        }
+
+                        @font-face {
+                          font-family: 'Cudlaimue' !important;
+                          src: url('https://sunny-croquembouche-9d7d67.netlify.app/fonts/cudlaimuespeedyr-regular-uhp9j3.woff2') format('woff2');
+                          font-display: swap;
+                        }
+
+                        @font-face {
+                          font-family: 'Layiji' !important;
+                          src: url('https://sunny-croquembouche-9d7d67.netlify.app/fonts/layijimahaniyomv1_61ot.woff2') format('woff2');
+                          font-display: swap;
+                        }
+
                         html { font-size: 80% !important; }
                         @media print { html { font-size: 100% !important; } }
                         :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
@@ -3741,11 +3859,11 @@
                                 setLoggedInUser={setLoggedInUser}
                                 showNotification={showNotification}
                                 onUpdateSettings={handleUpdateSettings}
+                                loggedInUser={loggedInUser} // ส่งข้อมูลว่าล็อกอินอยู่ไปให้หน้าหลัก
                             />
                         )}
                     </div>
 
-                    {/* เรียกใช้ Footer ไว้ล่างสุดนอกเงื่อนไข (จะโชว์ทุกหน้า!) */}
                     {!loading && <GlobalFooter settings={settings} />}
                 </div>
             );
