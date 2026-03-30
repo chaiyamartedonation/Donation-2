@@ -3968,22 +3968,23 @@
             // ==========================================
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('upload_ref')) {
+                // 🌟 ป้องกันจอขาว: ถ้า settings ยังไม่มา ให้ใช้ Kanit เป็นค่าเริ่มต้น 🌟
+                const currentFont = (settings && settings.fontFamily) ? settings.fontFamily : 'Kanit';
+                
                 return (
                     <div className="font-sans text-gray-800 flex flex-col min-h-screen bg-gray-50">
-                        {/* 🌟 ประกาศสไตล์เฉพาะสำหรับหน้าจอมือถือ เพื่อไม่ให้จอขาว 🌟 */}
                         <style>{`
-                            :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
+                            :root { --font-dynamic: '${currentFont}', 'Google Sans', sans-serif, cursive; }
                             body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { 
                                 font-family: var(--font-dynamic) !important; 
                             }
-                            
-                            /* ป้องกันการกระตุกหรือ Animation บั๊กบนมือถือบางรุ่น */
+                            /* ป้องกันการกระตุกบนมือถือ */
                             .animate-scale-up { animation: scaleUp 0.3s ease-out forwards; }
                             @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
                         `}</style>
                         
-                        <div className="flex-grow w-full max-w-md mx-auto relative">
-                            {/* เรียกใช้งาน Component อัปโหลดสลิป */}
+                        <div className="flex-grow w-full max-w-md mx-auto relative shadow-2xl bg-white min-h-screen">
+                            {/* เรียกหน้าจออัปโหลด */}
                             <RemoteSlipUpload db={db} />
                         </div>
                     </div>
