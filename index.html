@@ -1459,12 +1459,18 @@
         // ==========================================
         // DataTables-style Dashboard
         // ==========================================
+        // ==========================================
+        // DataTables-style Dashboard
+        // ==========================================
         function Dashboard({ donations, userRole, onUpdateDonation, onDeleteDonation, showNotification, settings, loggedInUser }) {
             const [editingDonation, setEditingDonation] = useState(null);
             const [viewSlip, setViewSlip] = useState(null);
             const [itemToDelete, setItemToDelete] = useState(null); 
             const [viewReceipt, setViewReceipt] = useState(null); 
             
+            // 🌟 เพิ่ม State สำหรับหน้าต่างพรีวิวรายงาน 🌟
+            const [showReportPreview, setShowReportPreview] = useState(false);
+
             // Export Modal States
             const [showExportModal, setShowExportModal] = useState(false);
             const [exportCols, setExportCols] = useState({
@@ -1570,19 +1576,9 @@
                 setFilterDate(''); setFilterMethod('all'); setFilterType('all'); setSearchTerm('');
             };
 
+            // 🌟 เปลี่ยนให้เปิดหน้าต่างพรีวิว แทนการสั่งพิมพ์เลย 🌟
             const handlePrintReport = () => {
-                const style = document.createElement('style');
-                style.id = 'report-print-page-style';
-                style.innerHTML = `@page { size: A4 portrait; margin: 15mm; }`;
-                document.head.appendChild(style);
-
-                const cleanup = () => {
-                    const st = document.getElementById('report-print-page-style');
-                    if (st) st.remove();
-                    window.removeEventListener('afterprint', cleanup);
-                };
-                window.addEventListener('afterprint', cleanup);
-                window.print();
+                setShowReportPreview(true);
             };
 
             const printDateDisplay = filterDate 
@@ -1654,6 +1650,110 @@
                             </div>
                         </div>
                     )}
+
+                    {/* ==================================================== */}
+                    {/* 🌟 REPORT PREVIEW MODAL (หน้าต่างพรีวิวก่อนพิมพ์) 🌟 */}
+                    {/* ==================================================== */}
+                    {showReportPreview && (
+                        <div className="fixed inset-0 bg-black/80 z-[150] flex flex-col items-center justify-start p-4 overflow-hidden">
+                            <div className="bg-white rounded-xl px-4 py-3 flex justify-between items-center z-20 no-print shadow-xl w-full max-w-[794px] mb-4 shrink-0">
+                                <h2 className="text-lg font-bold flex items-center text-gray-800">
+                                    <ClipboardList className="w-5 h-5 mr-2 text-blue-600"/> พรีวิวรายงานสรุปยอด (A4)
+                                </h2>
+                                <div className="flex gap-2">
+                                    <button onClick={() => {
+                                        document.body.classList.add('printing-receipt');
+                                        window.print();
+                                        setTimeout(() => document.body.classList.remove('printing-receipt'), 1000);
+                                    }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center transition shadow">
+                                        <Printer className="w-4 h-4 sm:mr-2"/> <span className="hidden sm:inline">สั่งพิมพ์เอกสาร</span>
+                                    </button>
+                                    <button onClick={() => setShowReportPreview(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-lg transition ml-2">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="w-full max-w-[850px] flex-grow overflow-auto bg-gray-900/40 rounded-xl p-2 sm:p-6 hide-scrollbar text-center">
+                                <div className="receipt-print-zone bg-white shadow-2xl relative shrink-0 inline-block text-left" 
+                                     style={{ margin: '0 auto', fontFamily: "'Sarabun', sans-serif", width: '794px', minHeight: '1050px', color: '#000', boxSizing: 'border-box', overflow: 'hidden', padding: '40px' }}>
+                                    
+                                    {/* OFFICIAL HEADER */}
+                                    <div className="flex items-center justify-center mb-6 relative">
+                                        {/* 🌟 ดึงรูปผ่าน Proxy เพื่อแก้ปัญหา CORS 🌟 */}
+                                        <img 
+                                            src={settings.receipt?.logoUrl?.startsWith('data:image') ? settings.receipt.logoUrl : `https://wsrv.nl/?url=${encodeURIComponent(settings.receipt?.logoUrl || "https://img2.pic.in.th/pic/-Ver.3-1.png")}&cors=1`} 
+                                            crossOrigin="anonymous" 
+                                            alt="Logo" 
+                                            style={{ height: '60px', position: 'absolute', left: '40px', objectFit: 'contain' }} 
+                                        />
+                                        <div className="text-center w-full">
+                                            <h1 className="text-[18px] font-bold">รายงานสรุปยอดเงินบริจาค</h1>
+                                            <h2 className="text-[16px] font-bold">{settings.templeName}</h2>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-end border-b-[2px] border-black pb-2 mt-4 text-[12px] mb-4">
+                                        <div>
+                                            <p><strong>ข้อมูล ณ วันที่:</strong> {printDateDisplay}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p><strong>วันเวลาที่ออกรายงาน:</strong> {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} เวลา {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</p>
+                                            <p><strong>ผู้จัดทำรายงาน:</strong> {loggedInUser ? loggedInUser.name : 'ระบบอัตโนมัติ'}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '1px solid #000', padding: '8px', fontSize: '13px', textAlign: 'center', width: '50px' }}>ลำดับ</th>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '1px solid #000', padding: '8px', fontSize: '13px', textAlign: 'left', width: '120px' }}>วัน - เวลา</th>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '1px solid #000', padding: '8px', fontSize: '13px', textAlign: 'left' }}>ผู้บริจาค</th>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '1px solid #000', padding: '8px', fontSize: '13px', textAlign: 'left' }}>รายละเอียด</th>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '1px solid #000', padding: '8px', fontSize: '13px', textAlign: 'center', width: '80px' }}>ช่องทาง</th>
+                                                <th style={{ borderTop: '2px solid #000', borderBottom: '1px solid #000', padding: '8px', fontSize: '13px', textAlign: 'right', width: '100px' }}>จำนวนเงิน</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredData.length > 0 ? filteredData.map((d, index) => (
+                                                <tr key={d.id}>
+                                                    <td style={{ borderBottom: '1px dashed #ccc', padding: '8px', fontSize: '13px', textAlign: 'center', verticalAlign: 'top' }}>{index + 1}</td>
+                                                    <td style={{ borderBottom: '1px dashed #ccc', padding: '8px', fontSize: '13px', verticalAlign: 'top' }}>
+                                                        {d.dateTime ? new Date(d.dateTime).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-'}
+                                                    </td>
+                                                    <td style={{ borderBottom: '1px dashed #ccc', padding: '8px', fontSize: '13px', verticalAlign: 'top' }}>{d.name}</td>
+                                                    <td style={{ borderBottom: '1px dashed #ccc', padding: '8px', fontSize: '13px', verticalAlign: 'top' }}>
+                                                        {d.purpose}
+                                                        {d.roongTaanDate && <span style={{ color: '#666' }}> (รท. {d.roongTaanDate})</span>}
+                                                    </td>
+                                                    <td style={{ borderBottom: '1px dashed #ccc', padding: '8px', fontSize: '13px', textAlign: 'center', verticalAlign: 'top' }}>{d.method}</td>
+                                                    <td style={{ borderBottom: '1px dashed #ccc', padding: '8px', fontSize: '13px', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold' }}>
+                                                        {(d.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                            )) : (
+                                                <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', fontSize: '13px' }}>ไม่พบข้อมูล</td></tr>
+                                            )}
+                                            {filteredData.length > 0 && (
+                                                <tr>
+                                                    <td colSpan="5" style={{ borderTop: '1px solid #000', borderBottom: '3px double #000', padding: '10px 8px', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>รวมยอดเงินบริจาคสุทธิทั้งสิ้น</td>
+                                                    <td style={{ borderTop: '1px solid #000', borderBottom: '3px double #000', padding: '10px 8px', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                                                        {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                    {filteredData.filter(d => d.status === 'pending').length > 0 && (
+                                        <p style={{ fontSize: '12px', color: '#666', marginTop: '10px', fontStyle: 'italic' }}>
+                                            หมายเหตุ: ยอดเงินรวมข้างต้น คำนวณเฉพาะรายการที่ได้รับการอนุมัติแล้ว โดยมีรายการรอตรวจสอบจำนวน {filteredData.filter(d => d.status === 'pending').length} รายการ
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {/* ==================================================== */}
                     
                     {/* Header & Tools (Screen Only) */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 no-print">
@@ -1845,125 +1945,9 @@
                             </div>
                         )}
                     </div>
-
-                    
-                   {/* ==================================================== */}
-                    {/* PRINT ONLY SECTION (รายงาน A4 ถูกดึงมาโชว์เฉพาะตอนกดพิมพ์เท่านั้น) */}
-                    {/* ==================================================== */}
-                    <div className="print-container print-only" style={{ fontFamily: "'Sarabun', sans-serif" }}>
-                        
-                        {/* OFFICIAL HEADER (Print Only) */}
-                        <div className="print-header-official mb-4">
-                            <div className="flex items-center justify-center mb-3 relative">
-                                <img 
-                                    src={settings.receipt?.logoUrl || "https://img2.pic.in.th/pic/-Ver.3-1.png"} 
-                                    alt="Logo" 
-                                    crossOrigin="anonymous"
-                                    style={{ height: '56px', position: 'absolute', left: '0', objectFit: 'contain' }} 
-                                />
-                                <div className="text-center w-full">
-                                    <h1 className="text-[14px] font-bold">รายงานสรุปยอดเงินบริจาค</h1>
-                                    <h2 className="text-[13px] font-bold">{settings.templeName}</h2>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-between items-end border-b-[1.5px] border-black pb-2 mt-4 text-[10px]">
-                                <div>
-                                    <p><strong>ข้อมูล ณ วันที่:</strong> {printDateDisplay}</p>
-                                </div>
-                                <div className="text-left">
-                                    <p>
-                                        <strong>วันเวลาที่ออกรายงาน:</strong>{" "}
-                                        {new Date().toLocaleDateString('th-TH', {
-                                            year: 'numeric', month: 'long', day: 'numeric'
-                                        })} เวลา{" "}
-                                        {new Date().toLocaleTimeString('th-TH', {
-                                            hour: '2-digit', minute: '2-digit'
-                                        })} น.
-                                    </p>
-                                    <p><strong>ผู้จัดทำรายงาน:</strong> {loggedInUser ? loggedInUser.name : 'ระบบอัตโนมัติ'}</p>
-                                </div>
-                            </div>
-                        </div>
-    
-                        {/* ตาราง */}
-                        <table className="print-table">
-                            <thead>
-                                <tr>
-                                    <th className="w-10 text-center">ลำดับ</th>
-                                    <th className="w-28 text-left">วัน - เวลา</th>
-                                    <th className="w-36 text-left">ผู้บริจาค</th>
-                                    <th className="text-left">รายละเอียด</th>
-                                    <th className="w-20 text-center">ช่องทาง</th>
-                                    <th className="w-24 text-right">จำนวนเงิน (บาท)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredData.length > 0 ? filteredData.map((d, index) => (
-                                    <tr key={d.id}>
-                                        <td className="text-center">{index + 1}</td>
-                                        <td>
-                                            {d.dateTime
-                                                ? new Date(d.dateTime).toLocaleString('th-TH', {
-                                                      dateStyle: 'short',
-                                                      timeStyle: 'short'
-                                                  })
-                                                : '-'}
-                                        </td>
-                                        <td>{d.name}</td>
-                                        <td>
-                                            {d.purpose}
-                                            {d.roongTaanDate && (
-                                                <span className="text-gray-500">
-                                                    {" "} (รท. {d.roongTaanDate})
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="text-center">{d.method}</td>
-                                        <td className="text-right">
-                                            {(d.amount || 0).toLocaleString(undefined, {
-                                                minimumFractionDigits: 2
-                                            })}
-                                        </td>
-                                    </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan="6" className="text-center py-3">
-                                            ไม่พบข้อมูลในรอบที่กำหนด
-                                        </td>
-                                    </tr>
-                                )}
-    
-                                {filteredData.length > 0 && (
-                                    <tr className="total-row font-bold">
-                                        <td colSpan="5" className="text-right pr-3 py-2">
-                                            รวมยอดเงินบริจาคสุทธิทั้งสิ้น
-                                        </td>
-                                        <td className="text-right py-2">
-                                            {totalAmount.toLocaleString(undefined, {
-                                                minimumFractionDigits: 2
-                                            })}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-    
-                        {/* หมายเหตุ */}
-                    {filteredData.filter(d => d.status === 'pending').length > 0 && (
-                        <p className="text-[10px] mt-2 text-gray-600">
-                            หมายเหตุ: ยอดเงินรวมข้างต้น คำนวณเฉพาะรายการที่ได้รับการอนุมัติแล้ว 
-                            โดยมีรายการรอตรวจสอบจำนวน {filteredData.filter(d => d.status === 'pending').length} รายการ
-                        </p>
-                    )}
-
                 </div>
-                {/* ==================================================== */}
-
-            </div>
-        );
-    }
-
+            );
+        }
     function ApprovalPanel({ donations, onApprove, onReject }) {
         const pending = donations.filter(d => d.status === 'pending');
         const [viewSlip, setViewSlip] = useState(null);
@@ -3933,14 +3917,19 @@
                 }
             };
 
+            // ==========================================
+            // ส่วนที่ 2: ดักจับ URL ถ้าเป็นการแสกน QR Code ให้ออกไปหน้าอัปโหลดมือถือ
+            // ==========================================
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('upload_ref')) {
                 return (
                     <div className={`font-sans text-gray-800 flex flex-col min-h-screen`}>
+                        {/* 🌟 ถอด @import ออก เพื่อป้องกันจอมือถือขาว 🌟 */}
                         <style>{`
-                            @import url('https://fonts.googleapis.com/css2?family=${settings.fontFamily || 'Prompt'}:wght@300;400;500;600;700&display=swap');
-                            :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
-                            body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { font-family: var(--font-dynamic) !important; }
+                            :root { --font-dynamic: '${settings.fontFamily || 'Kanit'}', 'Google Sans', sans-serif, cursive; }
+                            body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { 
+                                font-family: var(--font-dynamic) !important; 
+                            }
                         `}</style>
                         <div className="flex-grow">
                             <RemoteSlipUpload db={db} />
