@@ -3680,9 +3680,149 @@
         }
 
         // ==========================================
+        // 🌟 หน้าจออัปโหลดสลิปบนมือถือ (แยกเป็น Component ป้องกันจอขาว) 🌟
+        // ==========================================
+        function MobileUploadScreen({ db, sessionId, currentFont }) {
+            const [status, setStatus] = useState('waiting');
+            const [preview, setPreview] = useState(null);
+            const [errorMsg, setErrorMsg] = useState('');
+
+            // ฟังก์ชันย่อรูปเฉพาะกิจ (บีบให้เล็กสุดสำหรับส่งผ่านมือถือ)
+            const resizeForMobile = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.src = event.target.result;
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const MAX_WIDTH = 600; // ขนาดกำลังดี ประหยัดเน็ต
+                            let targetWidth = img.width;
+                            let targetHeight = img.height;
+                            if (targetWidth > MAX_WIDTH) {
+                                targetHeight = targetHeight * (MAX_WIDTH / targetWidth);
+                                targetWidth = MAX_WIDTH;
+                            }
+                            canvas.width = targetWidth; canvas.height = targetHeight;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/jpeg', 0.6));
+                        };
+                        img.onerror = reject;
+                    };
+                    reader.onerror = reject;
+                });
+            };
+
+            const handleMobileUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                setStatus('uploading');
+                setErrorMsg('');
+                try {
+                    const resizedImage = await resizeForMobile(file);
+                    setPreview(resizedImage);
+                    
+                    // บันทึกรูปภาพลงฐานข้อมูล Firebase
+                    await setDoc(doc(db, 'temp_uploads', sessionId), {
+                        slipImage: resizedImage,
+                        status: 'completed',
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                    
+                    setStatus('success');
+                } catch (error) {
+                    console.error("Upload Error:", error);
+                    setErrorMsg(error.message || "เครือข่ายมีปัญหา หรือไฟล์ใหญ่เกินไป");
+                    setStatus('error');
+                }
+            };
+
+            return (
+                <div className="font-sans text-gray-800 flex flex-col min-h-screen bg-gray-50">
+                    <style>{`
+                        :root { --font-dynamic: '${currentFont}', 'Google Sans', sans-serif, cursive; }
+                        body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { 
+                            font-family: var(--font-dynamic) !important; 
+                        }
+                        .animate-scale-up { animation: scaleUp 0.3s ease-out forwards; }
+                        @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+                    `}</style>
+                    <div className="flex-grow w-full max-w-md mx-auto relative shadow-2xl bg-white min-h-screen flex items-center justify-center p-4">
+                        <div className="bg-white p-8 rounded-2xl shadow-xl w-full text-center border border-gray-100">
+                            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <UploadCloud className="w-8 h-8 text-blue-600" />
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-800 mb-2">ส่งสลิปโอนเงิน</h2>
+                            <p className="text-sm text-gray-500 mb-6">คลิกปุ่มด้านล่างเพื่อเลือกรูปภาพ<br/>ระบบจะส่งเข้าจอคอมพิวเตอร์อัตโนมัติ</p>
+
+                            {status === 'waiting' && (
+                                <label className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition cursor-pointer">
+                                    เลือกรูปสลิปจากมือถือ
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleMobileUpload} />
+                                </label>
+                            )}
+
+                            {status === 'uploading' && (
+                                <div className="py-8 flex flex-col items-center">
+                                    <Loader className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+                                    <p className="text-blue-600 font-bold animate-pulse">กำลังส่งรูปภาพ...</p>
+                                </div>
+                            )}
+
+                            {status === 'success' && (
+                                <div className="py-4 animate-scale-up">
+                                    <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                                    <h3 className="text-xl font-bold text-green-600 mb-2">ส่งสลิปสำเร็จ!</h3>
+                                    <p className="text-sm text-gray-500 mb-4">ระบบได้รับรูปภาพของคุณเรียบร้อยแล้ว<br/>สามารถปิดหน้านี้ได้เลยครับ</p>
+                                    {preview && <img src={preview} alt="Slip" className="w-32 mx-auto rounded-lg border shadow-sm" />}
+                                </div>
+                            )}
+
+                            {status === 'error' && (
+                                <div className="py-4 animate-scale-up">
+                                    <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                                    <h3 className="text-lg font-bold text-red-600 mb-2">อัปโหลดไม่สำเร็จ</h3>
+                                    {errorMsg && <p className="text-xs text-left text-red-700 mb-4 border border-red-200 bg-red-50 p-2 rounded-lg break-words">{errorMsg}</p>}
+                                    <button onClick={() => setStatus('waiting')} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-xl font-bold transition">ลองใหม่อีกครั้ง</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ==========================================
         // 7. APP & ROOT
         // ==========================================
         function App() {
+            // 🌟 1. ดักจับ URL เป็นสิ่งแรกสุด (หนี Hooks Error) 🌟
+            const urlParams = new URLSearchParams(window.location.search);
+            const uploadRef = urlParams.get('upload_ref');
+            
+            // อ่านค่า settings ล่วงหน้าจาก LocalStorage (ถ้ามี) เพื่อให้ฟอนต์มือถือตรงกับเว็บหลัก
+            const [currentFont, setCurrentFont] = useState('Prompt');
+            useEffect(() => {
+                const fetchEarlySettings = async () => {
+                    try {
+                        const snap = await getDoc(doc(db, 'settings', 'config'));
+                        if (snap.exists() && snap.data().fontFamily) setCurrentFont(snap.data().fontFamily);
+                    } catch (e) { /* ignore */ }
+                };
+                if (uploadRef) fetchEarlySettings();
+            }, [uploadRef]);
+
+            // ถ้านี่คือมือถือที่สแกน QR Code ให้มันโชว์หน้านี้ไปเลย และจบแค่นี้
+            if (uploadRef) {
+                return <MobileUploadScreen db={db} sessionId={uploadRef} currentFont={currentFont} />;
+            }
+
+            // 🌟 2. เข้าสู่การทำงานหลักของระบบ 🌟
             const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 นาที
             
             // เพิ่มระบบจำหน้าล่าสุด (รีเฟรชแล้วอยู่หน้าเดิม)
@@ -3712,13 +3852,12 @@
             };
 
             // ==========================================
-            // 🌟 1. ระบบจำการล็อกอิน (Session Persistence)
+            // 🌟 ระบบจำการล็อกอิน (Session Persistence)
             // ==========================================
             const [loggedInUser, setLoggedInUserState] = useState(() => {
                 const savedUser = localStorage.getItem('temple_user');
                 const lastActivity = localStorage.getItem('temple_last_activity');
                 
-                // ถ้ารีเฟรชหน้าจอ ให้เช็คว่าเคยล็อกอินไว้ไหม และหมดเวลาหรือยัง
                 if (savedUser && lastActivity) {
                     if (new Date().getTime() - parseInt(lastActivity, 10) < SESSION_TIMEOUT) {
                         return JSON.parse(savedUser);
@@ -3742,7 +3881,7 @@
             };
 
             // ==========================================
-            // 🌟 2. ระบบเตะออกอัตโนมัติ (Auto Logout)
+            // 🌟 ระบบเตะออกอัตโนมัติ (Auto Logout)
             // ==========================================
             useEffect(() => {
                 if (!loggedInUser) return;
@@ -3964,34 +4103,6 @@
             };
 
             // ==========================================
-            // ส่วนที่ 2: ดักจับ URL ถ้าเป็นการแสกน QR Code ให้ออกไปหน้าอัปโหลดมือถือ
-            // ==========================================
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('upload_ref')) {
-                // 🌟 ป้องกันจอขาว: ถ้า settings ยังไม่มา ให้ใช้ Kanit เป็นค่าเริ่มต้น 🌟
-                const currentFont = (settings && settings.fontFamily) ? settings.fontFamily : 'Kanit';
-                
-                return (
-                    <div className="font-sans text-gray-800 flex flex-col min-h-screen bg-gray-50">
-                        <style>{`
-                            :root { --font-dynamic: '${currentFont}', 'Google Sans', sans-serif, cursive; }
-                            body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { 
-                                font-family: var(--font-dynamic) !important; 
-                            }
-                            /* ป้องกันการกระตุกบนมือถือ */
-                            .animate-scale-up { animation: scaleUp 0.3s ease-out forwards; }
-                            @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-                        `}</style>
-                        
-                        <div className="flex-grow w-full max-w-md mx-auto relative shadow-2xl bg-white min-h-screen">
-                            {/* เรียกหน้าจออัปโหลด */}
-                            <RemoteSlipUpload db={db} />
-                        </div>
-                    </div>
-                );
-            }
-
-            // ==========================================
             // โครงสร้างหน้าเว็บหลัก (Main App Render)
             // ==========================================
             return (
@@ -4061,7 +4172,7 @@
                                 setLoggedInUser={setLoggedInUser}
                                 showNotification={showNotification}
                                 onUpdateSettings={handleUpdateSettings}
-                                loggedInUser={loggedInUser} // ส่งข้อมูลว่าล็อกอินอยู่ไปให้หน้าหลัก
+                                loggedInUser={loggedInUser} 
                             />
                         )}
                     </div>
