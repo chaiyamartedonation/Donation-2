@@ -323,6 +323,22 @@
         const E_TAX_URL = "https://chaiyamartta.github.io/E-Tax-Donation/";
 
         // ==========================================
+        // ฟังก์ชันช่วยเช็คสถานะเปิด-ปิดระบบ (รวมตั้งเวลาอัตโนมัติ)
+        // ==========================================
+        const getSystemStatus = (settings) => {
+            if (settings.systemStatus === 'maintenance') return 'maintenance';
+            if (settings.systemStatus === 'closed') return 'closed';
+            if (settings.autoClose?.enabled) {
+                const now = new Date();
+                const currentStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                const openStr = settings.autoClose.openTime || '06:00';
+                const closeStr = settings.autoClose.closeTime || '18:00';
+                if (currentStr < openStr || currentStr >= closeStr) return 'auto_closed';
+            }
+            return 'open';
+        };
+
+        // ==========================================
         // 3. UTILITIES
         // ==========================================
         
@@ -2115,10 +2131,10 @@
                     ];
                 }
                 if (!newConfig.lineNotify?.messageTemplate) {
-                    newConfig.lineNotify = {
-                        ...newConfig.lineNotify,
-                        messageTemplate: DEFAULT_SETTINGS.lineNotify.messageTemplate
-                    };
+                    newConfig.lineNotify = { ...newConfig.lineNotify, messageTemplate: DEFAULT_SETTINGS.lineNotify.messageTemplate };
+                }
+                if (!newConfig.autoClose) {
+                    newConfig.autoClose = { enabled: false, openTime: '06:00', closeTime: '18:00' };
                 }
                 setConfig(newConfig); 
             }, [settings]);
@@ -2136,6 +2152,11 @@
             const handleSave = () => { 
                 const cleanConfig = {
                     systemStatus: String(config.systemStatus || 'open'),
+                    autoClose: {
+                        enabled: Boolean(config.autoClose?.enabled || false),
+                        openTime: String(config.autoClose?.openTime || '06:00'),
+                        closeTime: String(config.autoClose?.closeTime || '18:00')
+                    },
                     templeName: String(config.templeName || ''),
                     themeColor: String(config.themeColor || 'orange'),
                     fontFamily: String(config.fontFamily || 'Prompt'),
@@ -2237,8 +2258,6 @@
             const handleExportJSON = async () => {
                 try {
                     setIsUploading(true);
-                    
-                    // ดึงข้อมูลทั้งหมดจาก Firestore
                     const donationsSnap = await getDocs(collection(db, 'donations'));
                     const donationsData = donationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -2284,15 +2303,11 @@
                     setIsUploading(true);
                     try {
                         const importedData = JSON.parse(event.target.result);
-                        
                         if (!importedData.settings || !importedData.donations) {
                             throw new Error("รูปแบบไฟล์ไม่ถูกต้อง หรือไม่ใช่ไฟล์ Backup ของระบบนี้");
                         }
-
-                        // 1. ทับ Settings
                         await setDoc(doc(db, 'settings', 'config'), importedData.settings);
 
-                        // 2. ทับ Donations (ลบของเก่า แล้วลงของใหม่)
                         const oldDonations = await getDocs(collection(db, 'donations'));
                         for (const docSnap of oldDonations.docs) { await deleteDoc(docSnap.ref); }
                         for (const d of importedData.donations) {
@@ -2300,7 +2315,6 @@
                             await setDoc(doc(db, 'donations', id), data);
                         }
 
-                        // 3. ทับ News
                         if (importedData.news) {
                             const oldNews = await getDocs(collection(db, 'news'));
                             for (const docSnap of oldNews.docs) { await deleteDoc(docSnap.ref); }
@@ -2417,7 +2431,6 @@
 
             const DropdownMenu = ({ id, title, icon: Icon, children }) => {
                 const isOpen = openDropdown === id;
-                // 🌟 เพิ่มการเช็ค child?.props?.id เพื่อป้องกัน Error จากคอมเมนต์หรือช่องว่าง 🌟
                 const isActiveGroup = React.Children.toArray(children).some(child => child && child.props && child.props.id === activeSection);
 
                 return (
@@ -2464,7 +2477,7 @@
                         <DropdownMenu id="group_admin" title="ผู้ดูแลระบบ" icon={ShieldCheck}>
                             <TabButton id="users" label="จัดการผู้ใช้งาน (Users)" icon={Users} />
                             <TabButton id="security" label="รหัสผ่านความปลอดภัย (PIN)" icon={Key} />
-                            <TabButton id="backup" label="สำรอง/กู้คืนข้อมูล (JSON)" icon={Database} /> {/* 🌟 ปุ่มเมนูใหม่ 🌟 */}
+                            <TabButton id="backup" label="สำรอง/กู้คืนข้อมูล (JSON)" icon={Database} />
                         </DropdownMenu>
                     </div>
                     
@@ -2481,11 +2494,8 @@
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {/* Export Card */}
                                     <div className="border border-blue-200 rounded-xl p-6 bg-blue-50/50 shadow-sm flex flex-col items-center text-center">
-                                        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 shadow-sm">
-                                            <Download className="w-8 h-8" />
-                                        </div>
+                                        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 shadow-sm"><Download className="w-8 h-8" /></div>
                                         <h4 className="font-bold text-lg mb-2 text-blue-800">สำรองข้อมูลทั้งหมด (Export)</h4>
                                         <p className="text-sm text-blue-600/80 mb-6 flex-grow">ดาวน์โหลดการตั้งค่า ข้อมูลผู้บริจาค และข่าวสารทั้งหมด ออกมาเป็นไฟล์ .json เก็บไว้ในเครื่อง</p>
                                         <button onClick={handleExportJSON} disabled={isUploading} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-lg transition shadow flex justify-center items-center">
@@ -2494,11 +2504,8 @@
                                         </button>
                                     </div>
 
-                                    {/* Import Card */}
                                     <div className="border border-red-200 rounded-xl p-6 bg-red-50/50 shadow-sm flex flex-col items-center text-center">
-                                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4 shadow-sm">
-                                            <UploadCloud className="w-8 h-8" />
-                                        </div>
+                                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4 shadow-sm"><UploadCloud className="w-8 h-8" /></div>
                                         <h4 className="font-bold text-lg mb-2 text-red-800">กู้คืนระบบ (Import)</h4>
                                         <p className="text-sm text-red-600/80 mb-6 flex-grow">อัปโหลดไฟล์ .json ที่เคยสำรองไว้ เพื่อกู้คืนระบบให้กลับมาเป็นแบบเดิม</p>
                                         <label className={`w-full ${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 cursor-pointer'} text-white font-bold py-3 px-4 rounded-lg transition shadow flex justify-center items-center`}>
@@ -2510,9 +2517,60 @@
                             </div>
                         )}
 
-                        {activeSection === 'general' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-lg font-bold mb-4 flex items-center"><PowerIcon className="w-5 h-5 mr-2" /> สถานะระบบ</h3><div className="space-y-2"><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'open' ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'open'} onChange={() => setConfig({...config, systemStatus: 'open'})} /><div><div className="font-bold text-green-700">เปิดรับบริจาค</div><div className="text-xs text-gray-500">ใช้งานปกติ</div></div></div></label><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'closed' ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'closed'} onChange={() => setConfig({...config, systemStatus: 'closed'})} /><div><div className="font-bold text-red-700">ปิดรับบริจาคชั่วคราว</div><div className="text-xs text-gray-500">แสดงหน้าเว็บ แต่ซ่อนฟอร์ม</div></div></div></label><label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'maintenance' ? 'bg-yellow-50 border-yellow-500 ring-1 ring-yellow-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'maintenance'} onChange={() => setConfig({...config, systemStatus: 'maintenance'})} /><div><div className="font-bold text-yellow-700">ปิดปรับปรุงระบบ</div><div className="text-xs text-gray-500">แสดงหน้าแจ้งปิดปรับปรุง</div></div></div></label></div></div><div><h3 className="text-lg font-bold mb-4 flex items-center"><Palette className="w-5 h-5 mr-2" /> ธีมสีเว็บไซต์</h3><div className="grid grid-cols-3 gap-2 mb-4">{themeColors.map(color => (<button key={color.id} onClick={() => setConfig({...config, themeColor: color.id})} className={`p-2 rounded border flex flex-col items-center gap-1 transition-all ${config.themeColor === color.id ? 'ring-2 ring-offset-2 ring-gray-400 border-gray-400 bg-gray-50' : 'hover:bg-gray-50'}`}><div className={`w-8 h-8 rounded-full ${color.class}`}></div><span className="text-xs">{color.name}</span></button>))}</div><h3 className="text-lg font-bold mb-4 flex items-center"><Type className="w-5 h-5 mr-2" /> ฟอนต์ (แบบตัวอักษร)</h3><select className="w-full p-2 border rounded mb-4" value={config.fontFamily || 'Sarabun'} onChange={e => setConfig({...config, fontFamily: e.target.value})}>{FONT_OPTIONS.map(font => (<option key={font.id} value={font.id}>{font.name}</option>))}</select><div><label className="block text-sm font-medium mb-1">ข้อความวิ่ง (Marquee Text)</label><input type="text" className="w-full p-2 border rounded" value={config.marqueeText || ''} onChange={e => setConfig({...config, marqueeText: e.target.value})} placeholder="เว้นว่างหากไม่ต้องการแสดง" /></div></div></div><div className="pt-4 border-t"><h3 className="text-lg font-bold mb-4 flex items-center"><ImageIcon className="w-5 h-5 mr-2" /> ข้อมูลพื้นฐาน</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium">ชื่อวัด / องค์กร</label><input type="text" className="w-full p-2 border rounded" value={config.templeName} onChange={e => setConfig({...config, templeName: e.target.value})} /></div><div><label className="text-sm font-medium">ลิงค์รูปหน้าปก (Banner URL)</label><input type="text" className="w-full p-2 border rounded" value={config.bannerUrl} onChange={e => setConfig({...config, bannerUrl: e.target.value})} /></div></div></div></div>)}
+                        {activeSection === 'general' && (
+                            <div className="space-y-6 animate-fade-in">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4 flex items-center"><PowerIcon className="w-5 h-5 mr-2" /> สถานะระบบ</h3>
+                                        <div className="space-y-2">
+                                            <label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'open' ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'open'} onChange={() => setConfig({...config, systemStatus: 'open'})} /><div><div className="font-bold text-green-700">เปิดรับบริจาค</div><div className="text-xs text-gray-500">ใช้งานปกติ</div></div></div></label>
+                                            <label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'closed' ? 'bg-red-50 border-red-500 ring-1 ring-red-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'closed'} onChange={() => setConfig({...config, systemStatus: 'closed'})} /><div><div className="font-bold text-red-700">ปิดรับบริจาคชั่วคราว</div><div className="text-xs text-gray-500">แสดงหน้าเว็บ แต่ซ่อนฟอร์ม</div></div></div></label>
+                                            <label className={`block p-3 rounded-lg border cursor-pointer ${config.systemStatus === 'maintenance' ? 'bg-yellow-50 border-yellow-500 ring-1 ring-yellow-500' : 'bg-gray-50'}`}><div className="flex items-center"><input type="radio" name="status" className="mr-3" checked={config.systemStatus === 'maintenance'} onChange={() => setConfig({...config, systemStatus: 'maintenance'})} /><div><div className="font-bold text-yellow-700">ปิดปรับปรุงระบบ</div><div className="text-xs text-gray-500">แสดงหน้าแจ้งปิดปรับปรุง</div></div></div></label>
+                                        </div>
+
+                                        <div className="mt-6 border-t pt-5">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div>
+                                                    <div className="font-bold text-gray-800 text-sm">เปิด/ปิดระบบอัตโนมัติตามเวลา</div>
+                                                    <div className="text-xs text-gray-500">อยู่นอกเวลา ระบบจะซ่อนฟอร์มบริจาค</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" className="sr-only peer" checked={config.autoClose?.enabled || false} onChange={e => setConfig({...config, autoClose: {...config.autoClose, enabled: e.target.checked}})} />
+                                                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                                                </label>
+                                            </div>
+                                            {config.autoClose?.enabled && (
+                                                <div className="grid grid-cols-2 gap-4 bg-orange-50 p-4 rounded-xl border border-orange-100 animate-fade-in">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-orange-800 mb-1">เวลาเริ่มเปิดรับ</label>
+                                                        <input type="time" className="w-full p-2 border border-orange-200 rounded outline-none focus:ring-2 focus:ring-orange-500 text-sm" value={config.autoClose?.openTime || '06:00'} onChange={e => setConfig({...config, autoClose: {...config.autoClose, openTime: e.target.value}})} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-orange-800 mb-1">เวลาปิดรับ</label>
+                                                        <input type="time" className="w-full p-2 border border-orange-200 rounded outline-none focus:ring-2 focus:ring-orange-500 text-sm" value={config.autoClose?.closeTime || '18:00'} onChange={e => setConfig({...config, autoClose: {...config.autoClose, closeTime: e.target.value}})} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4 flex items-center"><Palette className="w-5 h-5 mr-2" /> ธีมสีเว็บไซต์</h3>
+                                        <div className="grid grid-cols-3 gap-2 mb-4">{themeColors.map(color => (<button key={color.id} onClick={() => setConfig({...config, themeColor: color.id})} className={`p-2 rounded border flex flex-col items-center gap-1 transition-all ${config.themeColor === color.id ? 'ring-2 ring-offset-2 ring-gray-400 border-gray-400 bg-gray-50' : 'hover:bg-gray-50'}`}><div className={`w-8 h-8 rounded-full ${color.class}`}></div><span className="text-xs">{color.name}</span></button>))}</div>
+                                        <h3 className="text-lg font-bold mb-4 flex items-center"><Type className="w-5 h-5 mr-2" /> ฟอนต์ (แบบตัวอักษร)</h3>
+                                        <select className="w-full p-2 border rounded mb-4" value={config.fontFamily || 'Sarabun'} onChange={e => setConfig({...config, fontFamily: e.target.value})}>{FONT_OPTIONS.map(font => (<option key={font.id} value={font.id}>{font.name}</option>))}</select>
+                                        <div><label className="block text-sm font-medium mb-1">ข้อความวิ่ง (Marquee Text)</label><input type="text" className="w-full p-2 border rounded" value={config.marqueeText || ''} onChange={e => setConfig({...config, marqueeText: e.target.value})} placeholder="เว้นว่างหากไม่ต้องการแสดง" /></div>
+                                    </div>
+                                </div>
+                                <div className="pt-4 border-t">
+                                    <h3 className="text-lg font-bold mb-4 flex items-center"><ImageIcon className="w-5 h-5 mr-2" /> ข้อมูลพื้นฐาน</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div><label className="text-sm font-medium">ชื่อวัด / องค์กร</label><input type="text" className="w-full p-2 border rounded" value={config.templeName} onChange={e => setConfig({...config, templeName: e.target.value})} /></div>
+                                        <div><label className="text-sm font-medium">ลิงค์รูปหน้าปก (Banner URL)</label><input type="text" className="w-full p-2 border rounded" value={config.bannerUrl} onChange={e => setConfig({...config, bannerUrl: e.target.value})} /></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         
-                        {/* --- เมนูตั้งค่าป๊อปอัป --- */}
                         {activeSection === 'popup' && (
                             <div className="space-y-6 animate-fade-in">
                                 <h3 className="text-lg font-bold mb-4 flex items-center"><Megaphone className="w-5 h-5 mr-2 text-orange-600" /> ตั้งค่าป๊อปอัปประกาศหน้าแรก</h3>
@@ -2530,15 +2588,8 @@
                                     {config.popup?.enabled && (
                                         <div className="animate-fade-in border p-5 rounded-xl border-orange-100 bg-orange-50/30">
                                             <label className="block text-sm font-bold text-gray-800 mb-2">ลิงก์รูปภาพป๊อปอัป (Image URL)</label>
-                                            <input 
-                                                type="text" 
-                                                className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" 
-                                                value={config.popup?.imageUrl || ''} 
-                                                onChange={e => setConfig({...config, popup: {...config.popup, imageUrl: e.target.value}})} 
-                                                placeholder="เช่น https://example.com/poster.jpg" 
-                                            />
+                                            <input type="text" className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500" value={config.popup?.imageUrl || ''} onChange={e => setConfig({...config, popup: {...config.popup, imageUrl: e.target.value}})} placeholder="เช่น https://example.com/poster.jpg" />
                                             <p className="text-sm text-orange-600 font-medium mt-2"><Info className="w-4 h-4 inline mr-1" /> แนะนำให้นำรูปไปฝากไว้ที่เว็บรับฝากรูป แล้วนำลิงก์ (URL) มาวาง เพื่อไม่ให้เปลืองพื้นที่ฐานข้อมูลครับ</p>
-                                            
                                             {config.popup?.imageUrl && (
                                                 <div className="mt-6 pt-6 border-t border-orange-200">
                                                     <p className="text-sm font-bold text-gray-700 mb-4 text-center">ตัวอย่างการแสดงผล</p>
@@ -2556,18 +2607,9 @@
                                 <h3 className="text-lg font-bold mb-4 flex items-center"><Layout className="w-5 h-5 mr-2" /> แก้ไขหน้าประวัติและข้อมูล</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">หัวข้อเล็ก (เช่น ประวัติและข้อมูล)</label>
-                                            <input type="text" className="w-full p-2 border rounded" value={config.about?.title || ''} onChange={e => setConfig({...config, about: { ...config.about, title: e.target.value }})} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">หัวข้อใหญ่ (เช่น ความร่มเย็นแห่งล้านนา)</label>
-                                            <input type="text" className="w-full p-2 border rounded" value={config.about?.heading || ''} onChange={e => setConfig({...config, about: { ...config.about, heading: e.target.value }})} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">คำที่ต้องการเน้นสีส้ม (ต้องตรงกับในหัวข้อใหญ่)</label>
-                                            <input type="text" className="w-full p-2 border rounded text-orange-600 font-bold" value={config.about?.highlightWord || ''} onChange={e => setConfig({...config, about: { ...config.about, highlightWord: e.target.value }})} />
-                                        </div>
+                                        <div><label className="block text-sm font-medium mb-1">หัวข้อเล็ก (เช่น ประวัติและข้อมูล)</label><input type="text" className="w-full p-2 border rounded" value={config.about?.title || ''} onChange={e => setConfig({...config, about: { ...config.about, title: e.target.value }})} /></div>
+                                        <div><label className="block text-sm font-medium mb-1">หัวข้อใหญ่ (เช่น ความร่มเย็นแห่งล้านนา)</label><input type="text" className="w-full p-2 border rounded" value={config.about?.heading || ''} onChange={e => setConfig({...config, about: { ...config.about, heading: e.target.value }})} /></div>
+                                        <div><label className="block text-sm font-medium mb-1">คำที่ต้องการเน้นสีส้ม (ต้องตรงกับในหัวข้อใหญ่)</label><input type="text" className="w-full p-2 border rounded text-orange-600 font-bold" value={config.about?.highlightWord || ''} onChange={e => setConfig({...config, about: { ...config.about, highlightWord: e.target.value }})} /></div>
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
                                                 <label className="block text-sm font-medium">เนื้อหา / รายละเอียด</label>
@@ -2581,38 +2623,13 @@
                                     <div className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-medium mb-1">รูปภาพประกอบ (วางลิงก์ URL หรือ อัปโหลด)</label>
-                                            <input 
-                                                type="text" 
-                                                className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 mb-3 text-sm" 
-                                                placeholder="วางลิงก์รูปภาพ (URL) ที่นี่... (แนะนำเพื่อประหยัดพื้นที่)" 
-                                                value={config.about?.imageUrl?.startsWith('data:image') ? '' : (config.about?.imageUrl || '')} 
-                                                onChange={e => setConfig({...config, about: { ...config.about, imageUrl: e.target.value }})} 
-                                            />
-
+                                            <input type="text" className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 mb-3 text-sm" placeholder="วางลิงก์รูปภาพ (URL) ที่นี่... (แนะนำเพื่อประหยัดพื้นที่)" value={config.about?.imageUrl?.startsWith('data:image') ? '' : (config.about?.imageUrl || '')} onChange={e => setConfig({...config, about: { ...config.about, imageUrl: e.target.value }})} />
                                             <div className="flex items-center justify-center mb-3">
-                                                <hr className="w-full border-gray-200" />
-                                                <span className="px-3 text-xs text-gray-400 whitespace-nowrap">หรืออัปโหลด (ขนาดไฟล์ไม่เกิน 1MB)</span>
-                                                <hr className="w-full border-gray-200" />
+                                                <hr className="w-full border-gray-200" /><span className="px-3 text-xs text-gray-400 whitespace-nowrap">หรืออัปโหลด (ขนาดไฟล์ไม่เกิน 1MB)</span><hr className="w-full border-gray-200" />
                                             </div>
-
                                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
                                                 <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={handleAboutImageUpload} disabled={isUploading} />
-                                                {isUploading ? (
-                                                    <div className="flex flex-col items-center text-gray-500">
-                                                        <Loader className="w-8 h-8 animate-spin mb-2" />
-                                                        <span>กำลังอัปโหลด...</span>
-                                                    </div>
-                                                ) : config.about?.imageUrl ? (
-                                                    <div className="relative">
-                                                        <img src={config.about.imageUrl} alt="Preview" className="max-h-48 mx-auto rounded shadow" />
-                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป หรือวางลิงก์ใหม่ด้านบน</div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center text-gray-500">
-                                                        <UploadCloud className="w-8 h-8 mb-2" />
-                                                        <span>คลิกเพื่ออัปโหลดรูปภาพ</span>
-                                                    </div>
-                                                )}
+                                                {isUploading ? (<div className="flex flex-col items-center text-gray-500"><Loader className="w-8 h-8 animate-spin mb-2" /><span>กำลังอัปโหลด...</span></div>) : config.about?.imageUrl ? (<div className="relative"><img src={config.about.imageUrl} alt="Preview" className="max-h-48 mx-auto rounded shadow" /><div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป หรือวางลิงก์ใหม่ด้านบน</div></div>) : (<div className="flex flex-col items-center text-gray-500"><UploadCloud className="w-8 h-8 mb-2" /><span>คลิกเพื่ออัปโหลดรูปภาพ</span></div>)}
                                             </div>
                                         </div>
                                         <div className="bg-gray-50 p-4 rounded text-sm text-gray-600">
@@ -2636,106 +2653,41 @@
                                 <h3 className="text-lg font-bold mb-4 flex items-center"><ScrollText className="w-5 h-5 mr-2 text-orange-600" /> ตั้งค่าใบอนุโมทนาบัตร / ใบเสร็จ</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">ชื่อเจ้าอาวาส / ผู้รับเงิน (ปรากฏในลายเซ็น)</label>
-                                            <input type="text" className="w-full p-2 border rounded" value={config.receipt?.abbotName || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, abbotName: e.target.value }})} placeholder="เช่น พระครูวิจารณ์ธรรมาภิวัฒน์" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">เลขประจำตัวผู้เสียภาษีอากร</label>
-                                            <input type="text" className="w-full p-2 border rounded font-mono" value={config.receipt?.taxId || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, taxId: e.target.value }})} placeholder="0 9940 02406 46 8" />
-                                        </div>
+                                        <div><label className="block text-sm font-medium mb-1">ชื่อเจ้าอาวาส / ผู้รับเงิน (ปรากฏในลายเซ็น)</label><input type="text" className="w-full p-2 border rounded" value={config.receipt?.abbotName || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, abbotName: e.target.value }})} placeholder="เช่น พระครูวิจารณ์ธรรมาภิวัฒน์" /></div>
+                                        <div><label className="block text-sm font-medium mb-1">เลขประจำตัวผู้เสียภาษีอากร</label><input type="text" className="w-full p-2 border rounded font-mono" value={config.receipt?.taxId || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, taxId: e.target.value }})} placeholder="0 9940 02406 46 8" /></div>
                                     </div>
                                     <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">ที่ตั้งวัด (สำหรับแสดงในใบเสร็จ)</label>
-                                            <textarea rows="2" className="w-full p-2 border rounded" value={config.receipt?.address || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, address: e.target.value }})} placeholder="104 ต.เวียงทอง อ.สูงเม่น จ.แพร่"></textarea>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">วัตถุประสงค์การบริจาคเริ่มต้น</label>
-                                            <input type="text" className="w-full p-2 border rounded" value={config.receipt?.defaultPurpose || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, defaultPurpose: e.target.value }})} placeholder="เงินบริจาคเพื่อบำรุงวัด" />
-                                            <p className="text-xs text-gray-500 mt-1">* ใช้ในกรณีที่ผู้บริจาคไม่ได้ระบุรายละเอียดชัดเจน</p>
-                                        </div>
+                                        <div><label className="block text-sm font-medium mb-1">ที่ตั้งวัด (สำหรับแสดงในใบเสร็จ)</label><textarea rows="2" className="w-full p-2 border rounded" value={config.receipt?.address || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, address: e.target.value }})} placeholder="104 ต.เวียงทอง อ.สูงเม่น จ.แพร่"></textarea></div>
+                                        <div><label className="block text-sm font-medium mb-1">วัตถุประสงค์การบริจาคเริ่มต้น</label><input type="text" className="w-full p-2 border rounded" value={config.receipt?.defaultPurpose || ''} onChange={e => setConfig({...config, receipt: { ...config.receipt, defaultPurpose: e.target.value }})} placeholder="เงินบริจาคเพื่อบำรุงวัด" /><p className="text-xs text-gray-500 mt-1">* ใช้ในกรณีที่ผู้บริจาคไม่ได้ระบุรายละเอียดชัดเจน</p></div>
                                     </div>
                                 </div>
                                 <div className="border-t pt-6 mt-4">
                                     <h4 className="font-bold text-gray-700 mb-4 flex items-center"><ImageIcon className="w-4 h-4 mr-2"/> รูปล็อกโก้, ลายเซ็น และตราประทับ</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        
-                                        {/* โลโก้ */}
                                         <div className="space-y-3">
                                             <label className="block text-sm font-medium mb-1">รูปโลโก้วัด (วางลิงก์ หรือ อัปโหลด)</label>
-                                            <input 
-                                                type="text" 
-                                                className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 text-sm" 
-                                                placeholder="วางลิงก์รูป (URL)..." 
-                                                value={config.receipt?.logoUrl?.startsWith('data:image') ? '' : (config.receipt?.logoUrl || '')} 
-                                                onChange={e => setConfig({...config, receipt: { ...config.receipt, logoUrl: e.target.value }})} 
-                                            />
+                                            <input type="text" className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 text-sm" placeholder="วางลิงก์รูป (URL)..." value={config.receipt?.logoUrl?.startsWith('data:image') ? '' : (config.receipt?.logoUrl || '')} onChange={e => setConfig({...config, receipt: { ...config.receipt, logoUrl: e.target.value }})} />
                                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
                                                 <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={e => handleReceiptImageUpload(e, 'logoUrl')} disabled={isUploading} />
-                                                {isUploading ? (
-                                                    <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
-                                                ) : config.receipt?.logoUrl ? (
-                                                    <div className="relative pointer-events-none">
-                                                        <img src={config.receipt.logoUrl} className="max-h-16 mx-auto object-contain" alt="Logo" />
-                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป</div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปโลโก้วัด</div>
-                                                )}
+                                                {isUploading ? (<Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />) : config.receipt?.logoUrl ? (<div className="relative pointer-events-none"><img src={config.receipt.logoUrl} className="max-h-16 mx-auto object-contain" alt="Logo" /><div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป</div></div>) : (<div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปโลโก้วัด</div>)}
                                             </div>
                                         </div>
-
-                                        {/* ลายเซ็น */}
                                         <div className="space-y-3">
                                             <label className="block text-sm font-medium mb-1">รูปลายเซ็น (วางลิงก์ หรือ อัปโหลด)</label>
-                                            <input 
-                                                type="text" 
-                                                className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 text-sm" 
-                                                placeholder="วางลิงก์รูปลายเซ็น (URL)..." 
-                                                value={config.receipt?.signatureUrl?.startsWith('data:image') ? '' : (config.receipt?.signatureUrl || '')} 
-                                                onChange={e => setConfig({...config, receipt: { ...config.receipt, signatureUrl: e.target.value }})} 
-                                            />
+                                            <input type="text" className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 text-sm" placeholder="วางลิงก์รูปลายเซ็น (URL)..." value={config.receipt?.signatureUrl?.startsWith('data:image') ? '' : (config.receipt?.signatureUrl || '')} onChange={e => setConfig({...config, receipt: { ...config.receipt, signatureUrl: e.target.value }})} />
                                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
                                                 <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={e => handleReceiptImageUpload(e, 'signatureUrl')} disabled={isUploading} />
-                                                {isUploading ? (
-                                                    <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
-                                                ) : config.receipt?.signatureUrl ? (
-                                                    <div className="relative pointer-events-none">
-                                                        <img src={config.receipt.signatureUrl} className="max-h-16 mx-auto object-contain" style={{ mixBlendMode: 'multiply' }} alt="ลายเซ็น" />
-                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป</div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปลายเซ็น</div>
-                                                )}
+                                                {isUploading ? (<Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />) : config.receipt?.signatureUrl ? (<div className="relative pointer-events-none"><img src={config.receipt.signatureUrl} className="max-h-16 mx-auto object-contain" style={{ mixBlendMode: 'multiply' }} alt="ลายเซ็น" /><div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป</div></div>) : (<div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปลายเซ็น</div>)}
                                             </div>
                                         </div>
-
-                                        {/* ตราประทับ */}
                                         <div className="space-y-3">
                                             <label className="block text-sm font-medium mb-1">รูปตราประทับ (วางลิงก์ หรือ อัปโหลด)</label>
-                                            <input 
-                                                type="text" 
-                                                className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 text-sm" 
-                                                placeholder="วางลิงก์รูปตราประทับ (URL)..." 
-                                                value={config.receipt?.stampUrl?.startsWith('data:image') ? '' : (config.receipt?.stampUrl || '')} 
-                                                onChange={e => setConfig({...config, receipt: { ...config.receipt, stampUrl: e.target.value }})} 
-                                            />
+                                            <input type="text" className="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-orange-500 text-sm" placeholder="วางลิงก์รูปตราประทับ (URL)..." value={config.receipt?.stampUrl?.startsWith('data:image') ? '' : (config.receipt?.stampUrl || '')} onChange={e => setConfig({...config, receipt: { ...config.receipt, stampUrl: e.target.value }})} />
                                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer relative">
                                                 <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/*" onChange={e => handleReceiptImageUpload(e, 'stampUrl')} disabled={isUploading} />
-                                                {isUploading ? (
-                                                    <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
-                                                ) : config.receipt?.stampUrl ? (
-                                                    <div className="relative pointer-events-none">
-                                                        <img src={config.receipt.stampUrl} alt="Stamp" className="w-16 h-16 mx-auto object-contain" style={{ mixBlendMode: 'multiply' }} />
-                                                        <div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป</div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปตราประทับ</div>
-                                                )}
+                                                {isUploading ? (<Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />) : config.receipt?.stampUrl ? (<div className="relative pointer-events-none"><img src={config.receipt.stampUrl} alt="Stamp" className="w-16 h-16 mx-auto object-contain" style={{ mixBlendMode: 'multiply' }} /><div className="mt-2 text-xs text-gray-500">คลิกเพื่ออัปโหลดเปลี่ยนรูป</div></div>) : (<div className="text-gray-500 pointer-events-none"><UploadCloud className="w-6 h-6 mx-auto mb-1" />อัปโหลดรูปตราประทับ</div>)}
                                             </div>
                                         </div>
-
                                     </div>
                                 </div>
                             </div>
