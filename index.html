@@ -1377,8 +1377,10 @@
                                     )}
                                 </div>
 
-                                {/* ส่วนของหลักฐานการโอน */}
-                                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                                {/* ========================================= */}
+                                {/* ส่วนของหลักฐานการโอน (สลิป) และการจัดการช่องทาง */}
+                                {/* ========================================= */}
+                                <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
                                     {method === 'เงินโอน' ? (
                                         <div className="space-y-4">
                                             
@@ -1395,51 +1397,67 @@
                                                 </div>
                                             )}
 
-                                            {/* ช่องทางอัปโหลดสลิปแบบปกติ */}
                                             <div className="border-t border-gray-200 pt-4 mt-2">
                                                 <p className="text-sm font-bold text-gray-700 mb-2">
                                                     {userRole === 'donor' ? 'สแกน QR ด้านล่างแล้วแนบสลิปที่นี่' : 'หรือแนบหลักฐานการโอนด้วยตนเอง'}
                                                 </p>
                                                 
+                                                {/* คิวอาร์โค้ดสำหรับผู้บริจาคโอนเงิน */}
                                                 {userRole === 'donor' && (
-                                                    <div className="bg-white p-3 rounded-lg shadow-sm border inline-block mb-3 text-center">
-                                                        <img src={settings.qrCodeUrl} alt="QR Code" className="w-32 h-32 object-contain mx-auto" />
-                                                        <p className="text-xs text-gray-500 mt-1">{settings.bankInfo?.bankName}</p>
-                                                        <p className={`text-lg font-mono font-bold text-${theme}-700 mt-1`}>{settings.bankInfo?.accountNumber}</p>
+                                                    <div className="bg-white p-3 rounded-xl shadow-sm border mb-4 text-center">
+                                                        <div className="relative inline-block group">
+                                                            <img 
+                                                                src={settings.qrCodeUrl} 
+                                                                alt="QR Code" 
+                                                                className="w-36 h-36 object-contain mx-auto cursor-pointer group-hover:scale-105 transition-transform duration-300 rounded-lg drop-shadow-sm" 
+                                                                onClick={() => setShowFullQR(true)}
+                                                                title="คลิกเพื่อขยายรูป"
+                                                            />
+                                                            <div className="absolute bottom-2 right-2 bg-black/60 text-white p-1.5 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Search className="w-4 h-4" />
+                                                            </div>
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 mt-2 cursor-pointer hover:text-gray-800" onClick={() => setShowFullQR(true)}>🔍 คลิกที่รูปเพื่อขยาย</p>
                                                     </div>
                                                 )}
 
-                                                <label className="cursor-pointer block border-2 border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-100 transition text-center">
+                                                {/* คำเตือน E-Donation ของฝั่งผู้บริจาค */}
+                                                {userRole === 'donor' && (
+                                                    <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-center">
+                                                        <p className="text-sm font-bold text-red-600">ไม่สามารถโอนผ่านหมายเลขบัญชีได้</p>
+                                                        <p className="text-xs text-red-500 mt-1">เนื่องจากเป็นระบบ E-Donation ของกรมสรรพากร</p>
+                                                    </div>
+                                                )}
+
+                                                {/* ปุ่มเลือกไฟล์จากคอมพิวเตอร์/มือถือ */}
+                                                <label className="cursor-pointer block border-2 border-dashed border-gray-300 rounded-xl p-4 hover:bg-orange-50 hover:border-orange-300 transition text-center group">
                                                     <div className="flex flex-col items-center justify-center">
-                                                        {isUploading ? <Loader className="w-6 h-6 animate-spin text-gray-400" /> : <UploadCloud className="w-6 h-6 text-gray-400 mb-1" />}
-                                                        <span className="text-sm text-gray-600 font-medium">
-                                                            {slipImage ? '✓ มีรูปสลิปแล้ว (คลิก)' : 'คลิกเพื่อเลือกไฟล์รูป'}
+                                                        {isUploading ? <Loader className="w-6 h-6 animate-spin text-gray-400" /> : <UploadCloud className="w-8 h-8 text-gray-400 mb-2 group-hover:text-orange-500 transition-colors" />}
+                                                        <span className="text-sm text-gray-600 font-medium group-hover:text-orange-600">
+                                                            {slipImage ? '✓ เปลี่ยนรูปสลิปใหม่ (คลิก)' : 'คลิกเพื่อเลือกไฟล์รูปสลิป'}
                                                         </span>
                                                     </div>
                                                     <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                                                 </label>
                                                 
-                                                {/* พรีวิวรูปสลิป */}
+                                                {/* พรีวิวสลิปที่เลือกมา */}
                                                 {slipImage && (
-                                                    <div className="mt-4 relative inline-block p-2 bg-white border rounded-xl shadow-sm w-full text-center">
-                                                        <img src={slipImage} alt="Preview" className="h-32 object-contain rounded mx-auto" />
-                                                        <button type="button" onClick={() => setSlipImage(null)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition"><X className="w-4 h-4" /></button>
+                                                    <div className="mt-4 relative inline-block p-2 bg-white border rounded-xl shadow-sm w-full text-center animate-scale-up">
+                                                        <img src={slipImage} alt="Preview" className="h-40 object-contain rounded mx-auto" />
+                                                        <button type="button" onClick={() => setSlipImage(null)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition hover:scale-110"><X className="w-4 h-4" /></button>
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center text-gray-400 py-4">
-                                            <ShoppingBag className="w-10 h-10 mb-2 opacity-50" />
-                                            <p className="text-sm">
+                                        <div className="flex flex-col items-center justify-center text-gray-400 py-8">
+                                            <ShoppingBag className="w-12 h-12 mb-3 opacity-50" />
+                                            <p className="text-sm text-center">
                                                 {method === 'เงินสด' && (userRole === 'staff' || userRole === 'admin') ? 'สถานะ: อนุมัติทันทีและออกใบเสร็จ' : 'รับเงินผ่านช่องทางที่ระบุ'}
                                             </p>
                                         </div>
                                     )}
                                 </div>
-                            </div>
-
-                        </div>
                         {/* ========================================================= */}
 
                         {/* ปุ่มยืนยัน (กว้างเต็มแถว ด้านล่างสุด) */}
@@ -1456,9 +1474,7 @@
                 </div>
             );
         }
-        // ==========================================
-        // DataTables-style Dashboard
-        // ==========================================
+
         // ==========================================
         // DataTables-style Dashboard
         // ==========================================
@@ -1658,7 +1674,7 @@
                         <div className="fixed inset-0 bg-black/80 z-[150] flex flex-col items-center justify-start p-4 overflow-hidden">
                             <div className="bg-white rounded-xl px-4 py-3 flex justify-between items-center z-20 no-print shadow-xl w-full max-w-[794px] mb-4 shrink-0">
                                 <h2 className="text-lg font-bold flex items-center text-gray-800">
-                                    <ClipboardList className="w-5 h-5 mr-2 text-blue-600"/> พรีวิวรายงานสรุปยอด (A4)
+                                    <ClipboardList className="w-5 h-5 mr-2 text-blue-600"/> รายงานสรุปยอด
                                 </h2>
                                 <div className="flex gap-2">
                                     <button onClick={() => {
@@ -3923,15 +3939,21 @@
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('upload_ref')) {
                 return (
-                    <div className={`font-sans text-gray-800 flex flex-col min-h-screen`}>
-                        {/* 🌟 ถอด @import ออก เพื่อป้องกันจอมือถือขาว 🌟 */}
+                    <div className="font-sans text-gray-800 flex flex-col min-h-screen bg-gray-50">
+                        {/* 🌟 ประกาศสไตล์เฉพาะสำหรับหน้าจอมือถือ เพื่อไม่ให้จอขาว 🌟 */}
                         <style>{`
-                            :root { --font-dynamic: '${settings.fontFamily || 'Kanit'}', 'Google Sans', sans-serif, cursive; }
+                            :root { --font-dynamic: '${settings.fontFamily || 'Prompt'}', sans-serif; }
                             body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, div, .font-sans { 
                                 font-family: var(--font-dynamic) !important; 
                             }
+                            
+                            /* ป้องกันการกระตุกหรือ Animation บั๊กบนมือถือบางรุ่น */
+                            .animate-scale-up { animation: scaleUp 0.3s ease-out forwards; }
+                            @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
                         `}</style>
-                        <div className="flex-grow">
+                        
+                        <div className="flex-grow w-full max-w-md mx-auto relative">
+                            {/* เรียกใช้งาน Component อัปโหลดสลิป */}
                             <RemoteSlipUpload db={db} />
                         </div>
                     </div>
