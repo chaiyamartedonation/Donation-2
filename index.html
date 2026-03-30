@@ -1047,6 +1047,9 @@
             const [currentTime, setCurrentTime] = useState(new Date());
             
             const [showFullQR, setShowFullQR] = useState(false);
+            
+            // 🌟 เพิ่ม State สำหรับปุ่มทดสอบหน้าจอ 🌟
+            const [testClosedScreen, setTestClosedScreen] = useState(false);
 
             const sysStatus = getSystemStatus(settings);
             
@@ -1225,15 +1228,30 @@
                 );
             }
 
-            if (sysStatus !== 'open' && userRole === 'donor') {
+            // 🌟 เช็คสถานะพร้อมกับปุ่มทดสอบ 🌟
+            if (testClosedScreen || (sysStatus !== 'open' && userRole === 'donor')) {
+                const displayStatus = testClosedScreen ? 'auto_closed' : sysStatus;
                 return (
-                    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 text-center text-red-600">
-                        <AlertTriangle className="w-16 h-16 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold">ขณะนี้ระบบปิดรับบริจาคออนไลน์</h2>
-                        {sysStatus === 'auto_closed' ? (
-                            <p className="mt-2 text-gray-700">เปิดให้ทำรายการอัตโนมัติเวลา <b className="text-orange-600">{settings.autoClose?.openTime} - {settings.autoClose?.closeTime} น.</b></p>
+                    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 text-center text-red-600 animate-scale-up mt-10 relative">
+                        
+                        {/* ปุ่มปิดโหมดทดสอบ (แสดงเฉพาะตอนกดปุ่มทดสอบมา) */}
+                        {testClosedScreen && (
+                            <button onClick={() => setTestClosedScreen(false)} className="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-bold transition flex items-center border border-gray-200 shadow-sm">
+                                <X className="w-4 h-4 mr-1" /> ปิดโหมดทดสอบ
+                            </button>
+                        )}
+                        
+                        <AlertTriangle className="w-16 h-16 mx-auto mb-4 mt-4 text-orange-500" />
+                        <h2 className="text-2xl font-bold mb-2">ขณะนี้ระบบปิดรับบริจาคออนไลน์</h2>
+                        
+                        {displayStatus === 'auto_closed' ? (
+                            <div className="bg-red-50 border border-red-100 p-5 rounded-xl mt-4 inline-block shadow-inner">
+                                <p className="text-xl text-red-700 font-bold mb-1">นอกเวลาบริจาค</p>
+                                <p className="text-gray-700 text-lg">โปรดร่วมทำบุญในวันถัดไปเวลา <b className="text-orange-600 text-xl">{settings.autoClose?.openTime || '06:00'} น.</b></p>
+                                <p className="text-sm text-gray-500 mt-3">* ระบบจะเปิดรับบริจาคอัตโนมัติเมื่อถึงเวลาที่กำหนด</p>
+                            </div>
                         ) : (
-                            <p className="mt-2 text-gray-700">ขออภัยในความไม่สะดวก</p>
+                            <p className="mt-4 text-gray-700 bg-gray-50 p-4 rounded-lg inline-block border">ขออภัยในความไม่สะดวก (ระบบปิดปรับปรุง)</p>
                         )}
                     </div>
                 );
@@ -1299,7 +1317,16 @@
 
                     <div className={`bg-${theme}-100 px-6 py-4 border-b border-${theme}-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2`}>
                         <h2 className={`text-xl font-semibold text-${theme}-800 flex items-center`}><PlusCircle className="w-6 h-6 mr-2 shrink-0" /> {userRole === 'donor' ? 'ฟอร์มแจ้งความประสงค์บริจาค' : 'บันทึกรับเงินบริจาค'}</h2>
-                        <span className="text-xs sm:text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">{userRole === 'donor' ? 'รอตรวจสอบ' : 'อนุมัติอัตโนมัติ'}</span>
+                        
+                        <div className="flex gap-2 items-center">
+                            {/* 🌟 ปุ่มกดทดสอบหน้าจอ (เห็นเฉพาะ Admin/Staff) 🌟 */}
+                            {(userRole === 'admin' || userRole === 'staff') && (
+                                <button type="button" onClick={() => setTestClosedScreen(true)} className="text-xs bg-white border border-gray-300 text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-50 transition shadow-sm font-medium">
+                                    👁️ พรีวิวหน้าจอปิดระบบ
+                                </button>
+                            )}
+                            <span className="text-xs sm:text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">{userRole === 'donor' ? 'รอตรวจสอบ' : 'อนุมัติอัตโนมัติ'}</span>
+                        </div>
                     </div>
                     
                     <form onSubmit={handleSubmit} className="p-6">
@@ -1540,6 +1567,7 @@
                 </div>
             );
         }
+        
 
         // ==========================================
         // DataTables-style Dashboard
